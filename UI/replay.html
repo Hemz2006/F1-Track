@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1Track.com — Race Replay</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--red:#E10600;--red2:#FF1801;--darker:#050505;--dark:#0a0a0a;--panel:#0e0e0e;--panel2:#111;--border:rgba(255,255,255,0.07);--white:#f0f0f0;--green:#22c55e;--amber:#f59e0b;--teal:#00D2BE;--silver:#b0b0b0}
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}
+body{background:var(--darker);color:var(--white);font-family:'Rajdhani',sans-serif;cursor:none;display:flex;flex-direction:column}
+.cursor{position:fixed;width:10px;height:10px;background:var(--red);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen}
+.cursor-ring{position:fixed;width:28px;height:28px;border:1px solid rgba(225,6,0,.45);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .12s ease}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.02) 2px,rgba(0,0,0,.02) 4px);pointer-events:none;z-index:8000}
+
+/* ══ TOPBAR ══ */
+.topbar{height:52px;background:rgba(6,6,6,.98);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;position:relative;z-index:100}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,var(--red),transparent 60%)}
+.tb-logo{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:900;color:var(--red);letter-spacing:2px;flex-shrink:0}
+.tb-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+.tb-race{flex-shrink:0}
+.tb-race-name{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--white)}
+.tb-race-sub{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.3);margin-top:1px}
+/* weather chips */
+.weather-chips{display:flex;gap:8px;margin-left:auto}
+.wchip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:20px;padding:4px 12px}
+.wchip-icon{font-size:14px}
+.wchip-val{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700}
+.wchip-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.35);margin-top:1px}
+.track-status{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:5px 14px;font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--green);margin-left:12px}
+.track-status.sc{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3);color:var(--amber)}
+.track-status.vsc{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.3);color:#3b82f6}
+.clock-tb{font-family:'Share Tech Mono',monospace;font-size:12px;color:rgba(255,255,255,.35);letter-spacing:1px;margin-left:12px}
+
+/* ══ BODY ══ */
+.body{flex:1;display:grid;grid-template-columns:220px 1fr 280px;overflow:hidden;min-height:0}
+
+/* ══ LEFT PANEL — TIMING ══ */
+.timing-panel{background:rgba(8,8,8,.98);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.timing-header{padding:10px 14px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.timing-title{font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3)}
+.timing-cols{display:grid;grid-template-columns:26px 44px 1fr 68px;gap:4px;padding:4px 10px;border-bottom:1px solid rgba(255,255,255,.05)}
+.tc-h{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:2px;color:rgba(255,255,255,.2)}
+.timing-list{overflow-y:auto;flex:1}
+.timing-list::-webkit-scrollbar{width:2px}
+.timing-list::-webkit-scrollbar-thumb{background:rgba(225,6,0,.3)}
+.t-row{display:grid;grid-template-columns:26px 44px 1fr 68px;gap:4px;padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.03);align-items:center;cursor:pointer;transition:background .15s;position:relative}
+.t-row:hover{background:rgba(255,255,255,.04)}
+.t-row.selected{background:rgba(225,6,0,.07)}
+.t-row.pit-in{background:rgba(245,158,11,.05)}
+.t-pos{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-align:center}
+.t-pos.p1{color:var(--amber)}.t-pos.p2{color:var(--silver)}.t-pos.p3{color:#cd7f32}
+.t-badge{display:flex;align-items:center;justify-content:center;border-radius:3px;padding:2px 5px;font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px}
+.t-times{display:flex;flex-direction:column}
+.t-gap{font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,255,255,.5);letter-spacing:.5px}
+.t-int{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(255,255,255,.25);letter-spacing:.5px;margin-top:1px}
+.t-laptime{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.5px;text-align:right}
+.t-laptime.fastest{color:var(--teal)}
+.t-laptime.personal{color:var(--green)}
+.t-laptime.normal{color:rgba(255,255,255,.55)}
+.t-laptime sub{font-size:8px;color:rgba(255,255,255,.25);display:block;margin-top:1px}
+.pit-indicator{position:absolute;right:0;top:0;bottom:0;width:2px;background:var(--amber)}
+
+/* ══ TRACK CANVAS ══ */
+.track-wrap{position:relative;background:#080808;overflow:hidden;display:flex;align-items:center;justify-content:center}
+canvas#trackCanvas{display:block}
+/* lap badge */
+.lap-badge{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);border:1px solid var(--border);border-radius:4px;padding:8px 20px;text-align:center;backdrop-filter:blur(8px)}
+.lap-badge-num{font-family:'Orbitron',sans-serif;font-size:24px;font-weight:900;color:var(--white);line-height:1}
+.lap-badge-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-top:2px}
+/* overtake toast */
+.overtake-toast{position:absolute;top:70px;left:50%;transform:translateX(-50%);background:rgba(225,6,0,.15);border:1px solid rgba(225,6,0,.4);border-radius:4px;padding:8px 20px;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;color:var(--red);white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none}
+.overtake-toast.show{opacity:1}
+/* pit stop toast */
+.pit-toast{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:8px 20px;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;color:var(--amber);white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none}
+.pit-toast.show{opacity:1}
+/* race time overlay */
+.race-time-overlay{position:absolute;top:16px;right:16px;background:rgba(0,0,0,.7);border:1px solid var(--border);border-radius:4px;padding:8px 14px;text-align:right;backdrop-filter:blur(8px)}
+.rto-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.25)}
+.rto-time{font-family:'Share Tech Mono',monospace;font-size:18px;font-weight:700;color:var(--white);letter-spacing:2px;margin-top:2px}
+
+/* ══ CONTROLS BAR ══ */
+.controls-bar{position:absolute;bottom:0;left:0;right:0;height:68px;background:rgba(0,0,0,.88);border-top:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:16px;backdrop-filter:blur(12px)}
+.ctrl-btn{width:38px;height:38px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--white);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;flex-shrink:0;font-size:14px}
+.ctrl-btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2)}
+.ctrl-btn.primary{background:var(--red);border-color:var(--red2)}
+.ctrl-btn.primary:hover{background:var(--red2);box-shadow:0 0 16px rgba(225,6,0,.4)}
+/* progress */
+.progress-wrap{flex:1;position:relative;cursor:pointer}
+.progress-bg{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:visible;position:relative}
+.progress-fill{height:100%;background:linear-gradient(to right,var(--red),var(--red2));border-radius:2px;transition:width .1s linear;position:relative}
+.progress-fill::after{content:'';position:absolute;right:-5px;top:-4px;width:12px;height:12px;background:var(--white);border-radius:50%;border:2px solid var(--red);box-shadow:0 0 8px rgba(225,6,0,.6)}
+.progress-laps{display:flex;justify-content:space-between;margin-top:6px}
+.prog-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.25)}
+/* speed */
+.speed-btns{display:flex;gap:4px}
+.spd-btn{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:5px 10px;border:1px solid rgba(255,255,255,.1);border-radius:3px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;transition:all .2s}
+.spd-btn.active{border-color:var(--red);color:var(--red);background:rgba(225,6,0,.1)}
+
+/* ══ RIGHT PANEL ══ */
+.right-panel{background:rgba(8,8,8,.98);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rp-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.rp-tab{flex:1;padding:10px 6px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.3);cursor:pointer;text-align:center;transition:all .2s;border-bottom:2px solid transparent}
+.rp-tab.active{color:var(--red);border-bottom-color:var(--red)}
+.rp-content{flex:1;overflow-y:auto;padding:12px}
+.rp-content::-webkit-scrollbar{width:2px}
+.rp-content::-webkit-scrollbar-thumb{background:rgba(225,6,0,.3)}
+
+/* driver detail card */
+.driver-detail{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:5px;padding:14px;margin-bottom:10px;position:relative;overflow:hidden}
+.driver-detail::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--tc,var(--red))}
+.dd-name{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;margin-bottom:2px}
+.dd-team{font-size:12px;color:rgba(255,255,255,.4);font-weight:300;margin-bottom:12px}
+.dd-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dd-stat{background:rgba(0,0,0,.3);border-radius:3px;padding:8px 10px}
+.dd-stat-lbl{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:2px;color:rgba(255,255,255,.25);margin-bottom:3px}
+.dd-stat-val{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700}
+
+/* tire widget */
+.tire-widget{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:4px;padding:10px 12px;margin-bottom:8px}
+.tire-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;flex-shrink:0;border:2px solid}
+.tire-soft{background:rgba(225,6,0,.15);border-color:var(--red);color:var(--red)}
+.tire-medium{background:rgba(245,158,11,.15);border-color:var(--amber);color:var(--amber)}
+.tire-hard{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4);color:var(--white)}
+.tire-inter{background:rgba(34,197,94,.1);border-color:var(--green);color:var(--green)}
+.tire-info{flex:1}
+.tire-name{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.5);margin-bottom:2px}
+.tire-laps{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700}
+.tire-wear-bg{height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-top:6px}
+.tire-wear-fill{height:100%;border-radius:2px;transition:width .5s}
+
+/* event log */
+.event-log{display:flex;flex-direction:column;gap:6px}
+.ev-item{display:flex;gap:10px;padding:8px 10px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:4px;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+.ev-lap{font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,255,255,.2);min-width:32px;flex-shrink:0;margin-top:1px}
+.ev-icon{font-size:14px;flex-shrink:0}
+.ev-text{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600}
+.ev-sub{font-size:11px;color:rgba(255,255,255,.35);font-weight:300;margin-top:1px}
+
+/* mini sector bar */
+.sector-bars{display:flex;gap:3px;margin-top:8px}
+.sec-bar{height:3px;flex:1;border-radius:2px;transition:background .3s}
+.sec-bar.s1{background:var(--red);opacity:.7}
+.sec-bar.s2{background:var(--amber);opacity:.7}
+.sec-bar.s3{background:var(--green);opacity:.7}
+.sec-bar.done{opacity:1}
+.sec-bar.next{opacity:.2}
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="tb-logo">F1TRK</div>
+  <div class="tb-sep"></div>
+  <div class="tb-race">
+    <div class="tb-race-name" id="raceName">Bahrain Grand Prix · 2025</div>
+    <div class="tb-race-sub" id="raceSub">ROUND 04 · BAHRAIN INTERNATIONAL CIRCUIT</div>
+  </div>
+  <div class="weather-chips" style="margin-left:auto">
+    <div class="wchip"><div class="wchip-icon">🌡️</div><div><div class="wchip-val" style="color:#f59e0b">28</div><div class="wchip-lbl">TRC °C</div></div></div>
+    <div class="wchip"><div class="wchip-icon">💨</div><div><div class="wchip-val" style="color:#60a5fa">24</div><div class="wchip-lbl">AIR °C</div></div></div>
+    <div class="wchip"><div class="wchip-icon">🌬️</div><div><div class="wchip-val">6</div><div class="wchip-lbl">KM/H NE</div></div></div>
+    <div class="wchip"><div class="wchip-icon">☁️</div><div><div class="wchip-val" style="color:var(--silver)">0%</div><div class="wchip-lbl">RAIN</div></div></div>
+  </div>
+  <div class="track-status" id="trackStatus">TRACK CLEAR</div>
+  <div class="clock-tb" id="clock">--:--:--</div>
+</header>
+
+<!-- BODY -->
+<div class="body">
+
+  <!-- LEFT: LIVE TIMING -->
+  <div class="timing-panel">
+    <div class="timing-header">
+      <div class="timing-title">LIVE TIMING</div>
+    </div>
+    <div class="timing-cols">
+      <div class="tc-h">POS</div>
+      <div class="tc-h">DRV</div>
+      <div class="tc-h">GAP / INT</div>
+      <div class="tc-h" style="text-align:right">LAP TIME</div>
+    </div>
+    <div class="timing-list" id="timingList"></div>
+  </div>
+
+  <!-- CENTER: TRACK -->
+  <div class="track-wrap" id="trackWrap">
+    <canvas id="trackCanvas"></canvas>
+
+    <div class="lap-badge">
+      <div class="lap-badge-num"><span id="curLap">1</span> / <span id="totalLaps">57</span></div>
+      <div class="lap-badge-lbl">LAP</div>
+    </div>
+
+    <div class="race-time-overlay">
+      <div class="rto-lbl">RACE TIME</div>
+      <div class="rto-time" id="raceTime">00:00:00</div>
+    </div>
+
+    <div class="overtake-toast" id="overtakeToast">⚡ OVERTAKE</div>
+    <div class="pit-toast" id="pitToast">🔧 PIT STOP</div>
+
+    <!-- CONTROLS -->
+    <div class="controls-bar">
+      <button class="ctrl-btn" id="btnRestart" title="Restart">⏮</button>
+      <button class="ctrl-btn primary" id="btnPlay" title="Play/Pause">▶</button>
+      <button class="ctrl-btn" id="btnSkipF" title="Skip +5 laps">+5</button>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bg">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="progress-laps">
+          <span class="prog-lbl">LAP 1</span>
+          <span class="prog-lbl" id="progMid">LAP 28</span>
+          <span class="prog-lbl" id="progEnd">LAP 57</span>
+        </div>
+      </div>
+
+      <div class="speed-btns">
+        <button class="spd-btn" data-spd="0.5">0.5×</button>
+        <button class="spd-btn active" data-spd="1">1×</button>
+        <button class="spd-btn" data-spd="2">2×</button>
+        <button class="spd-btn" data-spd="4">4×</button>
+        <button class="spd-btn" data-spd="8">8×</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: INFO PANEL -->
+  <div class="right-panel">
+    <div class="rp-tabs">
+      <div class="rp-tab active" data-tab="driver">DRIVER</div>
+      <div class="rp-tab" data-tab="tires">TIRES</div>
+      <div class="rp-tab" data-tab="events">EVENTS</div>
+    </div>
+    <div class="rp-content" id="rpContent"></div>
+  </div>
+
+</div>
+
+<script>
+// ── CURSOR ──────────────────────────────────────────────────────────────
+const cursor=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px';});
+(function ar(){rx+=(mx-rx)*.14;ry+=(my-ry)*.14;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(ar)})();
+const hs=()=>ring.style.transform='translate(-50%,-50%) scale(1.7)';
+const hr=()=>ring.style.transform='translate(-50%,-50%) scale(1)';
+document.querySelectorAll('button,.rp-tab,.spd-btn,.t-row').forEach(el=>{el.addEventListener('mouseenter',hs);el.addEventListener('mouseleave',hr);});
+
+// ── CLOCK ────────────────────────────────────────────────────────────────
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=n.getUTCHours().toString().padStart(2,'0')+':'+n.getUTCMinutes().toString().padStart(2,'0')+':'+n.getUTCSeconds().toString().padStart(2,'0')+' UTC';}
+updateClock();setInterval(updateClock,1000);
+
+// ── RACE DATA ────────────────────────────────────────────────────────────
+const TOTAL_LAPS=57;
+const DRIVERS=[
+  {abbr:'LEC',name:'Charles Leclerc',    team:'Ferrari',       tc:'#E8002D', flag:'🇲🇨', tire:'S', tireAge:0},
+  {abbr:'SAI',name:'Carlos Sainz',       team:'Williams',      tc:'#005AFF', flag:'🇪🇸', tire:'S', tireAge:0},
+  {abbr:'VER',name:'Max Verstappen',     team:'Red Bull',      tc:'#1E41FF', flag:'🇳🇱', tire:'S', tireAge:0},
+  {abbr:'NOR',name:'Lando Norris',       team:'McLaren',       tc:'#FF8000', flag:'🇬🇧', tire:'S', tireAge:0},
+  {abbr:'PIA',name:'Oscar Piastri',      team:'McLaren',       tc:'#FF8020', flag:'🇦🇺', tire:'S', tireAge:0},
+  {abbr:'HAM',name:'Lewis Hamilton',     team:'Ferrari',       tc:'#E82020', flag:'🇬🇧', tire:'M', tireAge:0},
+  {abbr:'RUS',name:'George Russell',     team:'Mercedes',      tc:'#00D2BE', flag:'🇬🇧', tire:'M', tireAge:0},
+  {abbr:'PER',name:'Sergio Perez',       team:'Red Bull',      tc:'#1E60FF', flag:'🇲🇽', tire:'M', tireAge:0},
+  {abbr:'GAS',name:'Pierre Gasly',       team:'Alpine',        tc:'#0090FF', flag:'🇫🇷', tire:'M', tireAge:0},
+  {abbr:'TSU',name:'Yuki Tsunoda',       team:'RB',            tc:'#4466FF', flag:'🇯🇵', tire:'H', tireAge:0},
+  {abbr:'ALO',name:'Fernando Alonso',    team:'Aston Martin',  tc:'#006F62', flag:'🇪🇸', tire:'H', tireAge:0},
+  {abbr:'STR',name:'Lance Stroll',       team:'Aston Martin',  tc:'#00806A', flag:'🇨🇦', tire:'H', tireAge:0},
+  {abbr:'MAG',name:'Kevin Magnussen',    team:'Haas',          tc:'#888',    flag:'🇩🇰', tire:'H', tireAge:0},
+  {abbr:'HUL',name:'Nico Hülkenberg',   team:'Haas',          tc:'#999',    flag:'🇩🇪', tire:'H', tireAge:0},
+  {abbr:'OCO',name:'Esteban Ocon',      team:'Alpine',        tc:'#0078EE', flag:'🇫🇷', tire:'H', tireAge:0},
+  {abbr:'BOT',name:'Valtteri Bottas',   team:'Sauber',        tc:'#52E252', flag:'🇫🇮', tire:'H', tireAge:0},
+  {abbr:'ZHO',name:'Zhou Guanyu',       team:'Sauber',        tc:'#44CC44', flag:'🇨🇳', tire:'H', tireAge:0},
+  {abbr:'SAR',name:'Logan Sargeant',    team:'Williams',      tc:'#0048EE', flag:'🇺🇸', tire:'H', tireAge:0},
+  {abbr:'LAW',name:'Liam Lawson',       team:'RB',            tc:'#3355FF', flag:'🇳🇿', tire:'H', tireAge:0},
+  {abbr:'BEA',name:'Oliver Bearman',    team:'Haas',          tc:'#AAAAAA', flag:'🇬🇧', tire:'S', tireAge:0},
+];
+
+// Pit stop schedule [driver abbr, lap]
+const PIT_STOPS=[
+  ['LEC',18],['SAI',19],['VER',17],['NOR',20],['PIA',21],
+  ['HAM',22],['RUS',23],['PER',16],['GAS',24],['TSU',25],
+  ['ALO',30],['STR',28],['MAG',31],['HUL',29],['OCO',27],
+  ['BOT',32],['ZHO',33],['SAR',26],['LAW',34],['BEA',35],
+  // second stops
+  ['LEC',38],['VER',37],['NOR',40],['SAI',39],
+];
+
+// Events [lap, type, text, sub]
+const EVENTS=[
+  {lap:1,  type:'start',  icon:'🚦', text:'LIGHTS OUT', sub:'Race start — all 20 cars away'},
+  {lap:3,  type:'info',   icon:'⚡', text:'OVERTAKE: NOR on PIA', sub:'Turn 4 — DRS assist'},
+  {lap:7,  type:'info',   icon:'⚡', text:'OVERTAKE: VER on SAI', sub:'Main straight — DRS'},
+  {lap:12, type:'info',   icon:'⚡', text:'OVERTAKE: LEC on VER', sub:'Sector 1 — inside line'},
+  {lap:16, type:'pit',    icon:'🔧', text:'PIT IN: PER', sub:'Red Bull — medium tires'},
+  {lap:17, type:'pit',    icon:'🔧', text:'PIT IN: VER', sub:'Red Bull — hard tires'},
+  {lap:18, type:'pit',    icon:'🔧', text:'PIT IN: LEC', sub:'Ferrari — hard tires'},
+  {lap:19, type:'pit',    icon:'🔧', text:'PIT IN: SAI', sub:'Williams — medium tires'},
+  {lap:22, type:'sc',     icon:'🚗', text:'SAFETY CAR', sub:'Debris on track — turn 8'},
+  {lap:25, type:'info',   icon:'🟢', text:'SAFETY CAR IN', sub:'Racing resumes lap 26'},
+  {lap:28, type:'info',   icon:'⚡', text:'OVERTAKE: SAI on VER', sub:'After safety car restart'},
+  {lap:37, type:'pit',    icon:'🔧', text:'PIT IN: VER', sub:'Red Bull — second stop soft'},
+  {lap:38, type:'pit',    icon:'🔧', text:'PIT IN: LEC', sub:'Ferrari — second stop soft'},
+  {lap:45, type:'info',   icon:'⚡', text:'FASTEST LAP: NOR', sub:'1:32.608 — lap 45'},
+  {lap:52, type:'info',   icon:'🏆', text:'LEADER: LEC +8.4s', sub:'Six laps to go'},
+  {lap:57, type:'finish', icon:'🏁', text:'CHEQUERED FLAG', sub:'LEC wins the Bahrain GP'},
+];
+
+// ── BAHRAIN TRACK PATH ─────────────────────────────────────────────────
+// Normalized points [0,1] for the Bahrain circuit outline
+const RAW_PATH=[
+  [0.50,0.92],[0.44,0.92],[0.38,0.91],[0.32,0.88],[0.27,0.84],
+  [0.22,0.78],[0.19,0.71],[0.19,0.63],[0.21,0.56],[0.25,0.50],
+  [0.28,0.44],[0.28,0.37],[0.25,0.31],[0.22,0.26],[0.22,0.20],
+  [0.25,0.15],[0.30,0.11],[0.37,0.09],[0.44,0.09],[0.51,0.11],
+  [0.56,0.15],[0.59,0.21],[0.59,0.27],[0.56,0.33],[0.58,0.38],
+  [0.63,0.40],[0.69,0.40],[0.74,0.38],[0.78,0.34],[0.80,0.29],
+  [0.82,0.23],[0.85,0.19],[0.89,0.17],[0.93,0.18],[0.96,0.22],
+  [0.97,0.28],[0.96,0.35],[0.93,0.41],[0.89,0.46],[0.86,0.52],
+  [0.86,0.58],[0.88,0.64],[0.90,0.70],[0.90,0.77],[0.87,0.83],
+  [0.83,0.88],[0.77,0.91],[0.71,0.93],[0.64,0.93],[0.57,0.92],[0.50,0.92]
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────
+let playing=false, speed=1, lapProgress=0; // lapProgress: 0..TOTAL_LAPS
+let selectedDriver=0, activeTab='driver';
+let raceSeconds=0;
+let lastTimestamp=null;
+let animId=null;
+let shownEvents=new Set();
+let positions=[...DRIVERS.map((_,i)=>i)]; // index = race position, value = driver index
+let driverProgress=[]; // each driver's progress 0..TOTAL_LAPS
+let pitStatus={}; // abbr -> boolean
+let tireData={}; // abbr -> {tire, laps}
+
+function initState(){
+  driverProgress=DRIVERS.map((_,i)=>Math.max(0, -i*0.02)); // slight stagger at start
+  DRIVERS.forEach(d=>{pitStatus[d.abbr]=false; tireData[d.abbr]={tire:d.tire,laps:0};});
+  shownEvents=new Set();
+  lapProgress=0; raceSeconds=0;
+}
+initState();
+
+// ── CANVAS SETUP ─────────────────────────────────────────────────────────
+const canvas=document.getElementById('trackCanvas');
+const ctx=canvas.getContext('2d');
+let W=0,H=0,trackPts=[];
+
+function resize(){
+  const wrap=document.getElementById('trackWrap');
+  W=wrap.clientWidth; H=wrap.clientHeight-68;
+  canvas.width=W; canvas.height=H;
+  buildTrackPts();
+  drawFrame();
+}
+
+function buildTrackPts(){
+  const pad=0.08;
+  trackPts=RAW_PATH.map(([nx,ny])=>[
+    pad*W + nx*(1-2*pad)*W,
+    pad*H + ny*(1-2*pad)*H
+  ]);
+}
+
+// smooth catmull-rom helper
+function catmullRom(pts, t){
+  const n=pts.length-1;
+  const seg=Math.min(Math.floor(t*n), n-1);
+  const lt=(t*n)-seg;
+  const p0=pts[Math.max(seg-1,0)];
+  const p1=pts[seg];
+  const p2=pts[Math.min(seg+1,n)];
+  const p3=pts[Math.min(seg+2,n)];
+  const x=0.5*((2*p1[0])+(-p0[0]+p2[0])*lt+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*lt*lt+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*lt*lt*lt);
+  const y=0.5*((2*p1[1])+(-p0[1]+p2[1])*lt+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*lt*lt+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*lt*lt*lt);
+  return [x,y];
+}
+
+function getPointAt(frac){
+  const t=((frac%1)+1)%1;
+  return catmullRom(trackPts, t);
+}
+
+// ── DRAW ─────────────────────────────────────────────────────────────────
+function drawFrame(){
+  ctx.clearRect(0,0,W,H);
+
+  // track shadow glow
+  ctx.save();
+  ctx.shadowColor='rgba(255,255,255,.06)';
+  ctx.shadowBlur=18;
+
+  // outer track band
+  ctx.beginPath();
+  trackPts.forEach(([x,y],i)=>i===0?ctx.moveTo(x,y):ctx.lineTo(x,y));
+  ctx.closePath();
+  ctx.strokeStyle='rgba(255,255,255,.13)';
+  ctx.lineWidth=22;
+  ctx.lineJoin='round';
+  ctx.lineCap='round';
+  ctx.stroke();
+  ctx.restore();
+
+  // inner track (slightly narrower, darker)
+  ctx.beginPath();
+  trackPts.forEach(([x,y],i)=>i===0?ctx.moveTo(x,y):ctx.lineTo(x,y));
+  ctx.closePath();
+  ctx.strokeStyle='rgba(30,30,30,.9)';
+  ctx.lineWidth=16;
+  ctx.stroke();
+
+  // white racing line
+  ctx.beginPath();
+  trackPts.forEach(([x,y],i)=>i===0?ctx.moveTo(x,y):ctx.lineTo(x,y));
+  ctx.closePath();
+  ctx.strokeStyle='rgba(255,255,255,.45)';
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+
+  // start/finish line
+  const sfPt=getPointAt(0.01);
+  const sfPt2=getPointAt(0.005);
+  ctx.save();
+  const angle=Math.atan2(sfPt[1]-sfPt2[1],sfPt[0]-sfPt2[0]);
+  ctx.translate(sfPt[0],sfPt[1]);
+  ctx.rotate(angle+Math.PI/2);
+  for(let i=-2;i<3;i++){
+    ctx.fillStyle=i%2===0?'#fff':'#000';
+    ctx.fillRect(i*4,-14,4,10);
+  }
+  ctx.restore();
+
+  // DRS zones (teal overlay)
+  const drsSegs=[[0.82,0.95],[0.40,0.52]]; // [start,end] fractions
+  drsSegs.forEach(([s,e])=>{
+    ctx.beginPath();
+    const steps=30;
+    for(let i=0;i<=steps;i++){
+      const f=s+(e-s)*i/steps;
+      const [x,y]=getPointAt(f);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle='rgba(0,210,190,.35)';
+    ctx.lineWidth=5;
+    ctx.setLineDash([8,5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // ── DRIVER MARKERS ──────────────────────────────────────────────────
+  // Sort drivers by progress desc for render order
+  const order=[...DRIVERS.keys()].sort((a,b)=>driverProgress[b]-driverProgress[a]);
+
+  order.forEach(di=>{
+    const d=DRIVERS[di];
+    const prog=driverProgress[di];
+    const frac=((prog/TOTAL_LAPS)%1+1)%1;
+    const [x,y]=getPointAt(frac);
+    const isPit=pitStatus[d.abbr];
+    const isSelected=di===selectedDriver;
+    const pos=order.indexOf(di)+1; // visual race position
+
+    // glow for selected
+    if(isSelected){
+      ctx.save();
+      ctx.shadowColor=d.tc;
+      ctx.shadowBlur=20;
+      ctx.beginPath();
+      ctx.arc(x,y,12,0,Math.PI*2);
+      ctx.strokeStyle=d.tc;
+      ctx.lineWidth=2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // dot body
+    ctx.beginPath();
+    ctx.arc(x,y,isPit?4:7,0,Math.PI*2);
+    ctx.fillStyle=isPit?'rgba(245,158,11,.6)':d.tc;
+    ctx.fill();
+
+    if(!isPit){
+      // white border
+      ctx.beginPath();
+      ctx.arc(x,y,7,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,.3)';
+      ctx.lineWidth=1;
+      ctx.stroke();
+
+      // abbr label pill
+      const labW=32, labH=14;
+      const labX=x+10, labY=y-7;
+      ctx.fillStyle=d.tc;
+      ctx.beginPath();
+      ctx.roundRect(labX,labY,labW,labH,3);
+      ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.font=`bold 8px 'Orbitron', monospace`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(d.abbr,labX+labW/2,labY+labH/2);
+    }
+  });
+
+  ctx.textAlign='left';
+  ctx.textBaseline='alphabetic';
+}
+
+// ── SIM STEP ─────────────────────────────────────────────────────────────
+function simStep(dt){
+  // base pace per second at 1× — roughly 57 laps / (5400s race) * speed
+  const baseLapPerSec=0.0105*speed;
+
+  // update leader
+  driverProgress[0]+=baseLapPerSec*dt;
+  lapProgress=driverProgress[0];
+
+  // each other driver follows with slight gaps that evolve
+  for(let i=1;i<DRIVERS.length;i++){
+    const spread=0.005+(i*0.012);
+    driverProgress[i]=Math.max(0, driverProgress[0]-spread);
+    // add some randomness so they don't move robotically
+    driverProgress[i]+=((Math.random()-0.5)*0.0004);
+  }
+
+  // pit stops
+  const curLap=Math.floor(lapProgress);
+  PIT_STOPS.forEach(([abbr,pitLap])=>{
+    const di=DRIVERS.findIndex(d=>d.abbr===abbr);
+    if(di<0)return;
+    const dLap=Math.floor(driverProgress[di]);
+    if(dLap===pitLap && !pitStatus[abbr]){
+      pitStatus[abbr]=true;
+      // resume after short delay
+      setTimeout(()=>{
+        pitStatus[abbr]=false;
+        // update tire
+        const newTire=pitLap<25?'M':pitLap<40?'H':'S';
+        tireData[abbr]={tire:newTire,laps:0};
+        showPitToast(abbr);
+      },2200/speed);
+    }
+  });
+
+  // tire age
+  DRIVERS.forEach(d=>{if(!pitStatus[d.abbr])tireData[d.abbr].laps+=baseLapPerSec*dt;});
+
+  // update race time
+  raceSeconds+=dt*speed;
+
+  // clamp at end
+  if(lapProgress>=TOTAL_LAPS){
+    lapProgress=TOTAL_LAPS;
+    playing=false;
+    document.getElementById('btnPlay').textContent='▶';
+    document.getElementById('trackStatus').textContent='RACE FINISHED';
+  }
+}
+
+// ── TOASTS ────────────────────────────────────────────────────────────────
+let overtakeTimeout, pitTimeout;
+function showOvertakeToast(text){
+  const el=document.getElementById('overtakeToast');
+  el.textContent='⚡ '+text;
+  el.classList.add('show');
+  clearTimeout(overtakeTimeout);
+  overtakeTimeout=setTimeout(()=>el.classList.remove('show'),2500);
+}
+function showPitToast(abbr){
+  const el=document.getElementById('pitToast');
+  el.textContent='🔧 PIT STOP: '+abbr;
+  el.classList.add('show');
+  clearTimeout(pitTimeout);
+  pitTimeout=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// ── EVENTS TRIGGER ───────────────────────────────────────────────────────
+function checkEvents(){
+  const curLap=Math.floor(lapProgress);
+  EVENTS.forEach((ev,i)=>{
+    if(!shownEvents.has(i) && curLap>=ev.lap){
+      shownEvents.add(i);
+      addEventLog(ev);
+      if(ev.type==='info' && ev.text.includes('OVERTAKE')) showOvertakeToast(ev.text.replace('OVERTAKE: ',''));
+      if(ev.type==='sc') document.getElementById('trackStatus').textContent='SAFETY CAR';
+      if(ev.text.includes('SAFETY CAR IN')) document.getElementById('trackStatus').textContent='TRACK CLEAR';
+    }
+  });
+}
+
+const eventItems=[];
+function addEventLog(ev){
+  eventItems.unshift(ev);
+  if(activeTab==='events') renderEventsTab();
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────
+function loop(ts){
+  if(!lastTimestamp)lastTimestamp=ts;
+  const dt=Math.min((ts-lastTimestamp)/1000,0.1);
+  lastTimestamp=ts;
+  if(playing){
+    simStep(dt);
+    checkEvents();
+  }
+  updateUI();
+  drawFrame();
+  animId=requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ── UI UPDATE ─────────────────────────────────────────────────────────────
+function updateUI(){
+  // lap counter
+  const cl=Math.min(Math.floor(lapProgress)+1, TOTAL_LAPS);
+  document.getElementById('curLap').textContent=cl;
+  // progress bar
+  const pct=Math.min(lapProgress/TOTAL_LAPS*100,100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  // race time
+  const h=Math.floor(raceSeconds/3600),m=Math.floor((raceSeconds%3600)/60),s=Math.floor(raceSeconds%60);
+  document.getElementById('raceTime').textContent=h.toString().padStart(2,'0')+':'+m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+  // timing list
+  renderTiming();
+  // right panel
+  if(activeTab==='driver') renderDriverTab();
+  else if(activeTab==='tires') renderTiresTab();
+}
+
+// ── TIMING LIST ───────────────────────────────────────────────────────────
+function renderTiming(){
+  const order=[...DRIVERS.keys()].sort((a,b)=>driverProgress[b]-driverProgress[a]);
+  const leader=driverProgress[order[0]];
+  const html=order.map((di,pos)=>{
+    const d=DRIVERS[di];
+    const gap=pos===0?'LEADER':`+${((leader-driverProgress[di])*92).toFixed(3)}s`;
+    const intv=pos===0?'':'+'+((driverProgress[order[pos-1]]-driverProgress[di])*92).toFixed(3)+'s';
+    const lapT=generateLapTime(di);
+    const tireIcon=getTireIcon(tireData[d.abbr]?.tire||d.tire);
+    const isPit=pitStatus[d.abbr];
+    const isSelected=di===selectedDriver;
+    const posClass=pos===0?'p1':pos===1?'p2':pos===2?'p3':'';
+    return `<div class="t-row ${isSelected?'selected':''} ${isPit?'pit-in':''}" data-di="${di}">
+      ${isPit?'<div class="pit-indicator"></div>':''}
+      <div class="t-pos ${posClass}">${pos+1}</div>
+      <div class="t-badge" style="background:${d.tc}22;color:${d.tc};border:1px solid ${d.tc}44">${d.abbr}</div>
+      <div class="t-times">
+        <div class="t-gap">${isPit?'<span style="color:var(--amber)">IN PIT</span>':gap}</div>
+        <div class="t-int">${intv}</div>
+      </div>
+      <div>
+        <div class="t-laptime ${pos===0?'fastest':pos<3?'personal':'normal'}">${isPit?'--:--.---':lapT}</div>
+        <div class="t-laptime" style="font-size:7px;color:rgba(255,255,255,.2);text-align:right">${tireIcon}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('timingList').innerHTML=html;
+  document.querySelectorAll('.t-row').forEach(el=>{
+    el.addEventListener('mouseenter',hs);el.addEventListener('mouseleave',hr);
+    el.addEventListener('click',()=>{selectedDriver=+el.dataset.di;if(activeTab==='driver')renderDriverTab();else if(activeTab==='tires')renderTiresTab();});
+  });
+}
+
+let lapTimeCache={};
+function generateLapTime(di){
+  const base=92+di*0.15;
+  const k=Math.floor(lapProgress);
+  if(!lapTimeCache[di+'-'+k]) lapTimeCache[di+'-'+k]=base+(Math.random()-0.5)*1.2;
+  const t=lapTimeCache[di+'-'+k];
+  const m=Math.floor(t/60),s=(t%60).toFixed(3).padStart(6,'0');
+  return `${m}:${s}`;
+}
+
+function getTireIcon(t){
+  const m={S:'🔴 SOFT',M:'🟡 MED',H:'⚪ HARD',I:'🟢 INTER',W:'🔵 WET'};
+  return m[t]||t;
+}
+
+// ── RIGHT PANEL TABS ─────────────────────────────────────────────────────
+function renderDriverTab(){
+  const d=DRIVERS[selectedDriver];
+  const order=[...DRIVERS.keys()].sort((a,b)=>driverProgress[b]-driverProgress[a]);
+  const pos=order.indexOf(selectedDriver)+1;
+  const td=tireData[d.abbr]||{tire:d.tire,laps:0};
+  const tireClass={S:'tire-soft',M:'tire-medium',H:'tire-hard',I:'tire-inter'}[td.tire]||'tire-hard';
+  const tireWear=Math.min(100,td.laps*2.2);
+  const wearColor=tireWear>70?'var(--red)':tireWear>40?'var(--amber)':'var(--green)';
+  const lapT=generateLapTime(selectedDriver);
+  const gap=pos===1?'—':`+${((driverProgress[order[0]]-driverProgress[selectedDriver])*92).toFixed(3)}s`;
+  const sec=Math.floor(lapProgress*3)%3;
+
+  document.getElementById('rpContent').innerHTML=`
+    <div class="driver-detail" style="--tc:${d.tc}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="font-size:24px">${d.flag}</div>
+        <div>
+          <div class="dd-name">${d.name}</div>
+          <div class="dd-team">${d.team}</div>
+        </div>
+        <div style="margin-left:auto;font-family:'Orbitron',sans-serif;font-size:24px;font-weight:900;color:${pos<=3?['var(--amber)','var(--silver)','#cd7f32'][pos-1]:'rgba(255,255,255,.3)'}">${pos}</div>
+      </div>
+      <div class="dd-stats">
+        <div class="dd-stat"><div class="dd-stat-lbl">GAP TO LEAD</div><div class="dd-stat-val" style="font-size:12px">${gap}</div></div>
+        <div class="dd-stat"><div class="dd-stat-lbl">LAP TIME</div><div class="dd-stat-val" style="font-size:12px">${lapT}</div></div>
+        <div class="dd-stat"><div class="dd-stat-lbl">CURRENT LAP</div><div class="dd-stat-val">${Math.min(Math.floor(driverProgress[selectedDriver])+1,TOTAL_LAPS)}</div></div>
+        <div class="dd-stat"><div class="dd-stat-lbl">PIT STOPS</div><div class="dd-stat-val">${PIT_STOPS.filter(([a,l])=>a===d.abbr&&l<=lapProgress).length}</div></div>
+      </div>
+      <div class="sector-bars" style="margin-top:12px">
+        <div class="sec-bar s1 ${sec>=0?'done':'next'}" style="height:4px"></div>
+        <div class="sec-bar s2 ${sec>=1?'done':'next'}" style="height:4px"></div>
+        <div class="sec-bar s3 ${sec>=2?'done':'next'}" style="height:4px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--red)">S1: ${(lapT.split(':')[1]?parseFloat(lapT.split(':')[1])*0.3:0).toFixed(3)}s</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--amber)">S2: ${(lapT.split(':')[1]?parseFloat(lapT.split(':')[1])*0.42:0).toFixed(3)}s</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--green)">S3: ${(lapT.split(':')[1]?parseFloat(lapT.split(':')[1])*0.28:0).toFixed(3)}s</span>
+      </div>
+    </div>
+
+    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.2);margin:10px 0 6px">TYRE STATUS</div>
+    <div class="tire-widget">
+      <div class="tire-icon ${tireClass}">${td.tire}</div>
+      <div class="tire-info">
+        <div class="tire-name">${{S:'SOFT',M:'MEDIUM',H:'HARD',I:'INTER'}[td.tire]||td.tire} COMPOUND</div>
+        <div class="tire-laps">${Math.floor(td.laps)} <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,255,255,.3)">LAPS OLD</span></div>
+        <div class="tire-wear-bg"><div class="tire-wear-fill" style="width:${tireWear}%;background:${wearColor}"></div></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:${wearColor}">${Math.round(tireWear)}%</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:1px;color:rgba(255,255,255,.2);margin-top:2px">WEAR</div>
+      </div>
+    </div>
+
+    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.2);margin:10px 0 6px">ERS / POWER</div>
+    <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:4px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.3)">ERS DEPLOY</span>
+        <span style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;color:var(--teal)">${Math.floor(60+Math.random()*30)}%</span>
+      </div>
+      <div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px"><div style="height:100%;width:${60+Math.random()*30}%;background:var(--teal);border-radius:2px"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px">
+        <span style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.3)">DRS</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:${Math.random()>.5?'var(--green)':'rgba(255,255,255,.2)'}">${Math.random()>.5?'OPEN':'CLOSED'}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderTiresTab(){
+  const order=[...DRIVERS.keys()].sort((a,b)=>driverProgress[b]-driverProgress[a]);
+  const html=order.map((di,pos)=>{
+    const d=DRIVERS[di];
+    const td=tireData[d.abbr]||{tire:d.tire,laps:0};
+    const tireClass={S:'tire-soft',M:'tire-medium',H:'tire-hard',I:'tire-inter'}[td.tire]||'tire-hard';
+    const wear=Math.min(100,td.laps*2.2);
+    const wc=wear>70?'var(--red)':wear>40?'var(--amber)':'var(--green)';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" data-di="${di}">
+      <div style="font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,.25);width:16px;text-align:right">${pos+1}</div>
+      <div class="tire-icon ${tireClass}" style="width:26px;height:26px;font-size:9px">${td.tire}</div>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;color:${d.tc}">${d.abbr}</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(255,255,255,.3)">${Math.floor(td.laps)} laps</span>
+        </div>
+        <div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px"><div style="height:100%;width:${wear}%;background:${wc};border-radius:2px;transition:width .5s"></div></div>
+      </div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:${wc};min-width:30px;text-align:right">${Math.round(wear)}%</div>
+    </div>`;
+  }).join('');
+  document.getElementById('rpContent').innerHTML=`
+    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.2);margin-bottom:8px">ALL DRIVERS — TIRE WEAR</div>
+    <div>${html}</div>
+  `;
+  document.querySelectorAll('[data-di]').forEach(el=>{
+    el.addEventListener('click',()=>{selectedDriver=+el.dataset.di;activeTab='driver';document.querySelectorAll('.rp-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='driver'));renderDriverTab();});
+  });
+}
+
+function renderEventsTab(){
+  if(!eventItems.length){
+    document.getElementById('rpContent').innerHTML=`<div style="text-align:center;padding:40px 20px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.15)">NO EVENTS YET<br><br>START THE REPLAY</div>`;
+    return;
+  }
+  document.getElementById('rpContent').innerHTML=`
+    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.2);margin-bottom:8px">RACE EVENTS</div>
+    <div class="event-log">${eventItems.map(ev=>`
+      <div class="ev-item">
+        <div class="ev-lap">L${ev.lap}</div>
+        <div class="ev-icon">${ev.icon}</div>
+        <div>
+          <div class="ev-text" style="color:${ev.type==='pit'?'var(--amber)':ev.type==='sc'?'var(--blue)':ev.type==='finish'?'var(--green)':ev.type==='start'?'var(--teal)':'var(--white)'}">${ev.text}</div>
+          <div class="ev-sub">${ev.sub}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  `;
+}
+
+// ── CONTROLS ─────────────────────────────────────────────────────────────
+document.getElementById('btnPlay').addEventListener('click',()=>{
+  playing=!playing;
+  lastTimestamp=null;
+  document.getElementById('btnPlay').textContent=playing?'⏸':'▶';
+  document.getElementById('btnPlay').classList.toggle('primary',true);
+});
+
+document.getElementById('btnRestart').addEventListener('click',()=>{
+  playing=false; lastTimestamp=null;
+  document.getElementById('btnPlay').textContent='▶';
+  initState();
+  lapTimeCache={};
+  eventItems.length=0;
+  document.getElementById('trackStatus').textContent='TRACK CLEAR';
+});
+
+document.getElementById('btnSkipF').addEventListener('click',()=>{
+  lapProgress=Math.min(lapProgress+5,TOTAL_LAPS-1);
+  driverProgress[0]=lapProgress;
+  for(let i=1;i<DRIVERS.length;i++) driverProgress[i]=Math.max(0,driverProgress[0]-0.005-(i*0.012));
+});
+
+document.querySelectorAll('.spd-btn').forEach(btn=>{
+  btn.addEventListener('mouseenter',hs);btn.addEventListener('mouseleave',hr);
+  btn.addEventListener('click',()=>{
+    speed=parseFloat(btn.dataset.spd);
+    document.querySelectorAll('.spd-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// progress bar scrub
+document.getElementById('progressWrap').addEventListener('click',e=>{
+  const rect=e.currentTarget.getBoundingClientRect();
+  const pct=(e.clientX-rect.left)/rect.width;
+  lapProgress=pct*TOTAL_LAPS;
+  driverProgress[0]=lapProgress;
+  for(let i=1;i<DRIVERS.length;i++) driverProgress[i]=Math.max(0,driverProgress[0]-0.005-(i*0.012));
+});
+
+// tab switching
+document.querySelectorAll('.rp-tab').forEach(tab=>{
+  tab.addEventListener('mouseenter',hs);tab.addEventListener('mouseleave',hr);
+  tab.addEventListener('click',()=>{
+    activeTab=tab.dataset.tab;
+    document.querySelectorAll('.rp-tab').forEach(t=>t.classList.toggle('active',t===tab));
+    if(activeTab==='driver') renderDriverTab();
+    else if(activeTab==='tires') renderTiresTab();
+    else renderEventsTab();
+  });
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+window.addEventListener('resize',resize);
+resize();
+renderDriverTab();
+</script>
+</body>
+</html>

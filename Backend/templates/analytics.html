@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1Track.com — Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--red:#E10600;--red2:#FF1801;--darker:#050505;--panel:#0e0e0e;--border:rgba(255,255,255,0.07);--silver:#b0b0b0;--white:#f0f0f0;--green:#22c55e;--amber:#f59e0b;--teal:#00D2BE;--blue:#3b82f6}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+body{background:var(--darker);color:var(--white);font-family:'Rajdhani',sans-serif;min-height:100vh;cursor:none;overflow-x:hidden}
+.cursor{position:fixed;width:10px;height:10px;background:var(--red);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen}
+.cursor-ring{position:fixed;width:32px;height:32px;border:1px solid rgba(225,6,0,.45);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .15s ease}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px);pointer-events:none;z-index:9000}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:64px;background:rgba(8,8,8,.96);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:16px 0;z-index:500;backdrop-filter:blur(12px)}
+.logo-txt{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;color:var(--red);text-align:center;line-height:1.1;margin-bottom:28px}
+.nav-icon{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.35);position:relative}
+.nav-icon:hover,.nav-icon.active{background:rgba(225,6,0,.12);color:var(--red)}
+.nav-icon.active::before{content:'';position:absolute;left:-1px;top:25%;bottom:25%;width:2px;background:var(--red);border-radius:0 2px 2px 0}
+.nav-icon svg{width:20px;height:20px}
+.sidebar-bottom{margin-top:auto}
+.user-avatar{width:38px;height:38px;border-radius:50%;border:2px solid rgba(225,6,0,.4);display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--red);cursor:pointer;background:rgba(225,6,0,.08)}
+.topbar{position:fixed;top:0;left:64px;right:0;height:56px;background:rgba(8,8,8,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px 0 24px;z-index:400;backdrop-filter:blur(12px)}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,var(--red),transparent 50%)}
+.page-label{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px}
+.page-label span{color:var(--red)}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.clock{font-family:'Share Tech Mono',monospace;font-size:13px;color:rgba(255,255,255,.4);letter-spacing:1px}
+.tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;padding:3px}
+.tab-btn{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:5px 14px;border-radius:2px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;transition:all .2s;border:none}
+.tab-btn.active{background:var(--red);color:#fff}
+.main{margin-left:64px;padding-top:56px;min-height:100vh}
+.content{padding:28px;display:grid;gap:20px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+/* KPI row */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;animation:fadeUp .5s ease both}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--ac,var(--red)),transparent)}
+.kpi-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:8px}
+.kpi-val{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;line-height:1}
+.kpi-sub{font-size:12px;color:rgba(255,255,255,.35);margin-top:5px;font-weight:300}
+.kpi-delta{position:absolute;top:14px;right:14px;font-family:'Share Tech Mono',monospace;font-size:9px;padding:2px 7px;border-radius:2px}
+.dg{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.dr{background:rgba(225,6,0,.12);color:var(--red);border:1px solid rgba(225,6,0,.2)}
+.da{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+/* panel */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden;position:relative}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red),transparent)}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:13px 18px 11px;border-bottom:1px solid var(--border)}
+.pt{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px}
+.ptag{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--red);background:rgba(225,6,0,.1);padding:3px 8px;border-radius:2px}
+.pb{padding:16px 18px}
+/* row layouts */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:20px;animation:fadeUp .6s ease both}
+.row3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:20px;animation:fadeUp .65s ease both}
+.row2b{display:grid;grid-template-columns:2fr 1fr;gap:20px;animation:fadeUp .7s ease both}
+/* SVG charts */
+.chart-wrap{position:relative;width:100%}
+.chart-svg{width:100%;display:block}
+.axis-label{font-family:'Share Tech Mono',monospace;font-size:8px;fill:rgba(255,255,255,.2);letter-spacing:1px}
+.grid-line{stroke:rgba(255,255,255,.05);stroke-width:1}
+.chart-bar{transition:opacity .2s}
+.chart-bar:hover{opacity:.8}
+/* legend */
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.leg-item{display:flex;align-items:center;gap:6px}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+.leg-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.4)}
+/* table */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:rgba(255,255,255,.2);padding:6px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.07)}
+.data-table td{font-family:'Rajdhani',sans-serif;font-size:13px;padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:rgba(255,255,255,.02)}
+.mono{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.5px}
+/* bar compare */
+.bar-compare{display:flex;flex-direction:column;gap:8px}
+.bc-row{display:flex;align-items:center;gap:10px}
+.bc-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.4);width:36px;text-align:right;flex-shrink:0}
+.bc-bar-bg{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.bc-bar{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+.bc-val{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;min-width:36px;text-align:right;flex-shrink:0}
+/* heat map */
+.heatmap{display:grid;gap:3px}
+.hm-row{display:flex;gap:3px;align-items:center}
+.hm-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.25);width:28px;flex-shrink:0}
+.hm-cell{flex:1;height:20px;border-radius:2px;transition:opacity .2s;cursor:pointer;position:relative}
+.hm-cell:hover{opacity:.7}
+/* donut */
+.donut-wrap{display:flex;align-items:center;gap:20px}
+.donut-legend{display:flex;flex-direction:column;gap:8px}
+.dl-item{display:flex;align-items:center;gap:8px}
+.dl-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.dl-name{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600}
+.dl-pct{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;margin-left:auto}
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+<aside class="sidebar">
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="F1Track" style="width:44px;height:44px;object-fit:contain;margin-bottom:24px">
+ <a class="nav-icon" title="Dashboard" href="{{ url_for('dashboard') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <rect x="3" y="3" width="7" height="7" rx="1"/>
+    <rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/>
+    <rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Race Replay" href="{{ url_for('replay') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <polygon points="5 3 19 12 5 21 5 3"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Standings" href="{{ url_for('standings') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Drivers" href="{{ url_for('drivers') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Circuits" href="{{ url_for('circuits') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M12 8v4l3 3"/>
+  </svg>
+</a>
+
+<a class="nav-icon active" title="Analytics" href="{{ url_for('analytics') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+</a>
+  <div class="sidebar-bottom"><div class="nav-icon" style="margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div><div class="user-avatar">LP</div></div>
+</aside>
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:20px"><span class="page-label">ANALYT<span>ICS</span></span><div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:rgba(225,6,0,.8);background:rgba(225,6,0,.1);border:1px solid rgba(225,6,0,.25);border-radius:100px;padding:3px 12px">2026 — RND 7 OF 24</div></div>
+  <div class="topbar-right">
+    <div class="tabs" id="tabsMain">
+      <button class="tab-btn active" data-tab="championship">CHAMPIONSHIP</button>
+      <button class="tab-btn" data-tab="performance">PERFORMANCE</button>
+      <button class="tab-btn" data-tab="strategy">STRATEGY</button>
+    </div>
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+</header>
+<main class="main">
+  <div class="content">
+    <!-- ════════ CHAMPIONSHIP TAB ════════ -->
+    <div data-tab-content="championship">
+    <!-- Controls bar -->
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+      <div style="font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3)">LAP ANALYSIS:</div>
+      <select id="lapDriverSel" style="appearance:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 12px;font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:1px;color:#f0f0f0;outline:none;cursor:pointer;min-width:180px">
+        <option value="VER">Verstappen</option>
+      </select>
+      <select id="lapRoundSel" style="appearance:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 12px;font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:1px;color:#f0f0f0;outline:none;cursor:pointer">
+      </select>
+    </div>
+    <!-- Charts panels -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div style="background:#0e0e0e;border:1px solid rgba(255,255,255,.07);border-radius:6px;overflow:hidden;position:relative">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red,#E10600),transparent)"></div>
+        <div style="padding:14px 18px 12px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;justify-content:space-between">
+          <span style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px">DRIVERS CHAMPIONSHIP</span>
+          <span style="font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:#E10600;background:rgba(225,6,0,.1);padding:3px 8px;border-radius:2px">2026</span>
+        </div>
+        <div style="padding:16px 18px" id="mainContent"></div>
+      </div>
+      <div style="background:#0e0e0e;border:1px solid rgba(255,255,255,.07);border-radius:6px;overflow:hidden;position:relative">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red,#E10600),transparent)"></div>
+        <div style="padding:14px 18px 12px;border-bottom:1px solid rgba(255,255,255,.07)">
+          <span style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px">CONSTRUCTORS CHAMPIONSHIP</span>
+        </div>
+        <div style="padding:16px 18px" id="constructorChart">Loading...</div>
+      </div>
+    </div>
+    <div style="background:#0e0e0e;border:1px solid rgba(255,255,255,.07);border-radius:6px;overflow:hidden;position:relative;margin-top:4px">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red,#E10600),transparent)"></div>
+      <div style="padding:14px 18px 12px;border-bottom:1px solid rgba(255,255,255,.07)">
+        <span style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px">LAP TIMES ANALYSIS</span>
+      </div>
+      <div style="padding:16px 18px" id="lapChart">Select a driver and round above to load lap times.</div>
+    </div>
+    </div><!-- /championship -->
+
+    <!-- ════════ PERFORMANCE TAB ════════ -->
+    <div data-tab-content="performance" style="display:none">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+        <div style="font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3)">RACE:</div>
+        <select id="perfRoundSel" style="appearance:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 12px;font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:1px;color:#f0f0f0;outline:none;cursor:pointer;min-width:240px"></select>
+        <span id="perfStatus" style="font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.4)"></span>
+      </div>
+
+      <!-- 3 sector leaderboards -->
+      <div class="row3" style="margin-top:4px">
+        <div class="panel"><div class="ph"><span class="pt">BEST SECTOR 1</span><span class="ptag">PERSONAL BEST</span></div><div class="pb" id="perfS1">—</div></div>
+        <div class="panel"><div class="ph"><span class="pt">BEST SECTOR 2</span><span class="ptag">PERSONAL BEST</span></div><div class="pb" id="perfS2">—</div></div>
+        <div class="panel"><div class="ph"><span class="pt">BEST SECTOR 3</span><span class="ptag">PERSONAL BEST</span></div><div class="pb" id="perfS3">—</div></div>
+      </div>
+
+      <!-- Speed trap + Best lap leaderboards -->
+      <div class="row2" style="margin-top:4px">
+        <div class="panel"><div class="ph"><span class="pt">SPEED TRAP</span><span class="ptag">TOP SPEED · KM/H</span></div><div class="pb" id="perfSpeed">—</div></div>
+        <div class="panel"><div class="ph"><span class="pt">FASTEST LAP</span><span class="ptag">RACE BEST</span></div><div class="pb" id="perfBestLap">—</div></div>
+      </div>
+    </div>
+
+    <!-- ════════ STRATEGY TAB ════════ -->
+    <div data-tab-content="strategy" style="display:none">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+        <div style="font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3)">RACE:</div>
+        <select id="stratRoundSel" style="appearance:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 12px;font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:1px;color:#f0f0f0;outline:none;cursor:pointer;min-width:240px"></select>
+        <span id="stratStatus" style="font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.4)"></span>
+      </div>
+
+      <!-- Big stint Gantt across all drivers -->
+      <div class="panel" style="margin-top:4px">
+        <div class="ph"><span class="pt">TYRE STRATEGY</span><span class="ptag">STINTS · COMPOUND TIMELINE</span></div>
+        <div class="pb" id="stratGantt" style="padding:14px 18px">—</div>
+      </div>
+
+      <div class="row2" style="margin-top:4px">
+        <div class="panel"><div class="ph"><span class="pt">COMPOUND USAGE</span><span class="ptag">LAPS PER COMPOUND</span></div><div class="pb" id="stratCompound">—</div></div>
+        <div class="panel"><div class="ph"><span class="pt">PIT STOPS</span><span class="ptag">STINT COUNT PER DRIVER</span></div><div class="pb" id="stratPits">—</div></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+<script>
+const cursor=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px';});
+(function ar(){rx+=(mx-rx)*.14;ry+=(my-ry)*.14;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(ar)})();
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=n.getUTCHours().toString().padStart(2,'0')+':'+n.getUTCMinutes().toString().padStart(2,'0')+':'+n.getUTCSeconds().toString().padStart(2,'0')+' UTC';}
+updateClock();setInterval(updateClock,1000);
+
+const TC={
+  'Red Bull':'#1E41FF','McLaren':'#FF8000','Ferrari':'#E8002D',
+  'Mercedes':'#00D2BE','Williams':'#005AFF','Aston Martin':'#006F62',
+  'Alpine':'#0090FF','Haas':'#888888','Racing Bulls':'#4466FF',
+  'Kick Sauber':'#52E252','RB':'#4466FF','Sauber':'#52E252'
+};
+function tc(team){return TC[team]||'#E10600';}
+
+let driverStandings=[];
+let constructorStandings=[];
+let currentYear=2026;
+let currentDriver='VER';
+let currentRound=1;
+
+// ── Load all data for a year ───────────────────────────────────────────────
+async function loadAllData(year){
+  currentYear=year;
+  await Promise.all([loadDriverStandings(year), loadConstructorStandings(year)]);
+}
+
+async function loadDriverStandings(year){
+  const el=document.getElementById('mainContent');
+  if(el) el.innerHTML='<div style="padding:30px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.25)">LOADING...</div>';
+  try{
+    const res=await fetch(`/f1/standings/drivers/${year}`);
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    driverStandings=data.driver_standings||[];
+    renderDriverChart(driverStandings);
+    populateDriverSelector(driverStandings);
+  }catch(e){
+    if(el) el.innerHTML=`<div style="padding:20px;text-align:center;color:var(--red);font-family:Share Tech Mono,monospace;font-size:9px">⚠ ${e.message}</div>`;
+  }
+}
+
+async function loadConstructorStandings(year){
+  const el=document.getElementById('constructorChart');
+  if(el) el.innerHTML='<div style="padding:30px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.25)">LOADING...</div>';
+  try{
+    const res=await fetch(`/f1/standings/constructors/${year}`);
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    constructorStandings=data.constructor_standings||[];
+    renderConstructorChart(constructorStandings);
+  }catch(e){
+    if(el) el.innerHTML=`<div style="padding:20px;text-align:center;color:var(--red);font-family:Share Tech Mono,monospace;font-size:9px">⚠ ${e.message}</div>`;
+  }
+}
+
+// ── Driver bar chart ──────────────────────────────────────────────────────────
+function renderDriverChart(drivers){
+  const el=document.getElementById('mainContent');
+  if(!el) return;
+  const top8=drivers.slice(0,8);
+  const maxPts=top8[0]?.points||1;
+  const W=500,H=200,pad={l:44,r:10,t:14,b:32};
+
+  const barW=Math.floor((W-pad.l-pad.r)/top8.length)-6;
+  const bars=top8.map((d,i)=>{
+    const x=pad.l+i*(barW+6);
+    const bh=Math.max(2,Math.round((d.points/maxPts)*(H-pad.t-pad.b)));
+    const y=H-pad.b-bh;
+    const color=tc(d.team);
+    const abbr=(d.code||d.driver.split(' ').pop().slice(0,3)).toUpperCase();
+    return `
+      <rect x="${x}" y="${H-pad.b}" width="${barW}" height="0" fill="${color}" opacity="0.85" rx="2">
+        <animate attributeName="height" to="${bh}" dur="0.7s" fill="freeze" begin="${i*0.08}s"/>
+        <animate attributeName="y" to="${y}" dur="0.7s" fill="freeze" begin="${i*0.08}s"/>
+      </rect>
+      <text x="${x+barW/2}" y="${H-pad.b+13}" text-anchor="middle"
+            font-family="Share Tech Mono,monospace" font-size="8" fill="rgba(255,255,255,.45)">${abbr}</text>
+      <text x="${x+barW/2}" y="${y-5}" text-anchor="middle"
+            font-family="Orbitron,sans-serif" font-size="9" fill="${color}" font-weight="700">${d.points}</text>`;
+  }).join('');
+
+  const yLines=[0,.25,.5,.75,1].map(f=>{
+    const y=pad.t+(1-f)*(H-pad.t-pad.b);
+    return `<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>
+            <text x="${pad.l-5}" y="${y+3}" text-anchor="end" font-family="Share Tech Mono,monospace"
+                  font-size="7" fill="rgba(255,255,255,.2)">${Math.round(maxPts*f)}</text>`;
+  }).join('');
+
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+    ${yLines}${bars}
+  </svg>`;
+}
+
+// ── Constructor bar chart ─────────────────────────────────────────────────────
+function renderConstructorChart(teams){
+  const el=document.getElementById('constructorChart');
+  if(!el) return;
+  const top=teams.slice(0,10);
+  const maxPts=top[0]?.points||1;
+  const W=500,H=180,pad={l:44,r:10,t:14,b:32};
+
+  const barW=Math.floor((W-pad.l-pad.r)/top.length)-4;
+  const bars=top.map((d,i)=>{
+    const x=pad.l+i*(barW+4);
+    const bh=Math.max(2,Math.round((d.points/maxPts)*(H-pad.t-pad.b)));
+    const y=H-pad.b-bh;
+    const color=tc(d.team);
+    const abbr=(d.team||'').split(' ')[0].slice(0,3).toUpperCase();
+    return `
+      <rect x="${x}" y="${H-pad.b}" width="${barW}" height="0" fill="${color}" opacity="0.85" rx="2">
+        <animate attributeName="height" to="${bh}" dur="0.7s" fill="freeze" begin="${i*0.06}s"/>
+        <animate attributeName="y" to="${y}" dur="0.7s" fill="freeze" begin="${i*0.06}s"/>
+      </rect>
+      <text x="${x+barW/2}" y="${H-pad.b+13}" text-anchor="middle"
+            font-family="Share Tech Mono,monospace" font-size="7" fill="rgba(255,255,255,.45)">${abbr}</text>
+      <text x="${x+barW/2}" y="${y-5}" text-anchor="middle"
+            font-family="Orbitron,sans-serif" font-size="8" fill="${color}" font-weight="700">${d.points}</text>`;
+  }).join('');
+
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+    ${bars}
+  </svg>`;
+}
+
+// ── Driver selector ───────────────────────────────────────────────────────────
+function populateDriverSelector(drivers){
+  const sel=document.getElementById('lapDriverSel');
+  if(!sel) return;
+  sel.innerHTML=drivers.map(d=>`<option value="${d.code}">${d.driver}</option>`).join('');
+  // Default to championship leader
+  if(drivers[0]) sel.value=drivers[0].code;
+  currentDriver=sel.value;
+}
+
+// ── Lap times ─────────────────────────────────────────────────────────────────
+async function loadLapTimes(year, round, driver){
+  const el=document.getElementById('lapChart');
+  if(!el) return;
+  el.innerHTML='<div style="padding:30px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.25)">LOADING LAP TIMES...</div>';
+  try{
+    const res=await fetch(`/f1/lap-times/${year}/${round}/${driver}`);
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+
+    // laps are already filtered server-side (no NaT, no >300s laps)
+    const laps=(data.laps||[]).filter(l=>l.lap_time_sec&&l.lap_time_sec>0);
+
+    if(!laps.length){
+      el.innerHTML='<div style="padding:30px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;color:rgba(255,255,255,.25)">NO LAP DATA FOR THIS RACE</div>';
+      return;
+    }
+    renderLapChart(laps, data.driver, data.race_name, year, round);
+  }catch(e){
+    el.innerHTML=`<div style="padding:30px;text-align:center;color:var(--red);font-family:Share Tech Mono,monospace;font-size:9px">⚠ ${e.message}</div>`;
+  }
+}
+
+function fmtTime(sec){
+  const m=Math.floor(sec/60);
+  const s=(sec%60).toFixed(3).padStart(6,'0');
+  return `${m}:${s}`;
+}
+
+function renderLapChart(laps, driver, raceName, year, round){
+  const el=document.getElementById('lapChart');
+  if(!el) return;
+
+  const times=laps.map(l=>l.lap_time_sec);
+  const minT=Math.min(...times);
+  const maxT=Math.max(...times);
+  // Use 105% of minT as y-axis ceiling so outlier laps don't squash the chart
+  const yMax=minT*1.08;
+  const yMin=minT*0.995;
+  const W=600, H=200, pad={l:56,r:12,t:16,b:28};
+  const n=laps.length;
+
+  const xs=laps.map((_,i)=>pad.l+i*(W-pad.l-pad.r)/(Math.max(n-1,1)));
+  const yf=v=>{
+    const clamped=Math.min(Math.max(v,yMin),yMax);
+    return pad.t+(clamped-yMin)/(yMax-yMin)*(H-pad.t-pad.b);
+  };
+
+  const COMP={'SOFT':'#E10600','MEDIUM':'#FFCC00','HARD':'#E0E0E0',
+              'INTERMEDIATE':'#39B54A','WET':'#0067FF','UNKNOWN':'rgba(255,255,255,.4)'};
+
+  // Line path — only connect non-outlier laps
+  const pathPts=laps.map((l,i)=>{
+    const y=yf(l.lap_time_sec);
+    return `${i===0?'M':'L'}${xs[i].toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  // Dots coloured by compound
+  const dots=laps.map((l,i)=>{
+    const color=COMP[l.compound]||COMP['UNKNOWN'];
+    const y=yf(l.lap_time_sec);
+    const isPB=l.is_personal_best;
+    return `<circle cx="${xs[i].toFixed(1)}" cy="${y.toFixed(1)}" r="${isPB?4:2.5}"
+              fill="${color}" opacity="${isPB?1:0.8}"
+              ${isPB?'stroke="#fff" stroke-width="1"':''}>
+              <title>Lap ${l.lap_number}: ${fmtTime(l.lap_time_sec)} — ${l.compound}</title>
+            </circle>`;
+  }).join('');
+
+  // Pit lines
+  const pitLines=laps.filter(l=>l.pit_in).map(l=>{
+    const i=laps.indexOf(l);
+    return `<line x1="${xs[i].toFixed(1)}" y1="${pad.t}" x2="${xs[i].toFixed(1)}" y2="${H-pad.b}"
+              stroke="rgba(245,158,11,.5)" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="${xs[i].toFixed(1)}" y="${pad.t-3}" text-anchor="middle"
+                  font-family="Share Tech Mono,monospace" font-size="6" fill="rgba(245,158,11,.7)">PIT</text>`;
+  }).join('');
+
+  // Y axis labels
+  const yLabels=[0,.25,.5,.75,1].map(f=>{
+    const t=yMin+f*(yMax-yMin);
+    const y=yf(t);
+    return `<line x1="${pad.l}" y1="${y.toFixed(1)}" x2="${W-pad.r}" y2="${y.toFixed(1)}"
+              stroke="rgba(255,255,255,.05)" stroke-width="1"/>
+            <text x="${pad.l-5}" y="${(y+3).toFixed(1)}" text-anchor="end"
+                  font-family="Share Tech Mono,monospace" font-size="7" fill="rgba(255,255,255,.25)">${fmtTime(t)}</text>`;
+  }).join('');
+
+  // X axis (every 10 laps)
+  const xLabels=laps.filter((_,i)=>i===0||i===laps.length-1||(laps[i].lap_number%10===0)).map(l=>{
+    const i=laps.indexOf(l);
+    return `<text x="${xs[i].toFixed(1)}" y="${H-pad.b+11}" text-anchor="middle"
+                  font-family="Share Tech Mono,monospace" font-size="7" fill="rgba(255,255,255,.25)">${l.lap_number}</text>`;
+  }).join('');
+
+  // Best lap annotation
+  const bestLap=laps.reduce((a,b)=>a.lap_time_sec<b.lap_time_sec?a:b);
+  const bestIdx=laps.indexOf(bestLap);
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <span style="font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.4)">
+        ${driver} — ${raceName||''} — ${laps.length} racing laps
+      </span>
+      <span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--amber)">
+        BEST: ${fmtTime(bestLap.lap_time_sec)} (L${bestLap.lap_number})
+      </span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${Object.entries(COMP).filter(([k])=>k!=='UNKNOWN').map(([k,v])=>
+          `<span style="font-family:Share Tech Mono,monospace;font-size:8px;color:${v}">● ${k}</span>`
+        ).join('')}
+        <span style="font-family:Share Tech Mono,monospace;font-size:8px;color:rgba(245,158,11,.8)">| PIT STOP</span>
+      </div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;overflow:visible">
+      ${yLabels}${xLabels}${pitLines}
+      <path d="${pathPts}" fill="none" stroke="rgba(225,6,0,.4)" stroke-width="1.5"/>
+      ${dots}
+    </svg>
+    <div style="margin-top:6px;font-family:Share Tech Mono,monospace;font-size:8px;color:rgba(255,255,255,.2);letter-spacing:1px">
+      LAP NUMBER → &nbsp;|&nbsp; ● = personal best &nbsp;|&nbsp; Outlier laps (pit in/out) filtered from Y-axis
+    </div>`;
+}
+
+// ── Wire controls ─────────────────────────────────────────────────────────────
+document.getElementById('lapDriverSel')?.addEventListener('change',e=>{
+  currentDriver=e.target.value;
+  loadLapTimes(currentYear,currentRound,currentDriver);
+});
+document.getElementById('lapRoundSel')?.addEventListener('change',e=>{
+  currentRound=parseInt(e.target.value);
+  loadLapTimes(currentYear,currentRound,currentDriver);
+});
+
+// Populate round selector 1–24
+const roundSel=document.getElementById('lapRoundSel');
+if(roundSel){
+  for(let i=1;i<=24;i++){
+    const o=document.createElement('option');
+    o.value=i; o.textContent='ROUND '+i;
+    roundSel.appendChild(o);
+  }
+  roundSel.value=1;
+}
+
+// Init
+loadAllData(2026).then(()=>{
+  if(driverStandings[0]) currentDriver=driverStandings[0].code||'VER';
+  loadLapTimes(2026,1,currentDriver);
+});
+
+// ════════════════════════════════════════════════════════════════════
+//   TAB SWITCHING + PERFORMANCE + STRATEGY
+// ════════════════════════════════════════════════════════════════════
+let perfRound=null, stratRound=null;
+let perfData=null, stratData=null;
+let scheduleCache=null;
+
+async function getCompletedRounds(year){
+  if(scheduleCache && scheduleCache.year===year) return scheduleCache.races;
+  try {
+    const r = await fetch(`/f1/schedule/${year}`);
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    const races = (d.races||[]).filter(rc => rc.status==='done');
+    scheduleCache = {year, races};
+    return races;
+  } catch(e){ console.warn('schedule fetch failed', e); return []; }
+}
+
+async function populateAnalyticsRounds(){
+  const races = await getCompletedRounds(currentYear);
+  const opts = races.length
+    ? races.map(r => `<option value="${r.round}">R${String(r.round).padStart(2,'0')} — ${r.name}</option>`).join('')
+    : '<option value="">— no completed rounds —</option>';
+  ['perfRoundSel','stratRoundSel'].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(sel) sel.innerHTML = opts;
+  });
+  if(races.length){
+    perfRound = stratRound = races[races.length-1].round;
+    const ps = document.getElementById('perfRoundSel');
+    const ss = document.getElementById('stratRoundSel');
+    if(ps) ps.value = perfRound;
+    if(ss) ss.value = stratRound;
+  }
+}
+
+function switchAnalyticsTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('[data-tab-content]').forEach(d => {
+    d.style.display = d.dataset.tabContent === tab ? '' : 'none';
+  });
+  if(tab==='performance' && perfRound) loadPerformance(perfRound);
+  if(tab==='strategy' && stratRound) loadStrategy(stratRound);
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchAnalyticsTab(btn.dataset.tab));
+});
+
+// ── Performance tab ────────────────────────────────────────────────
+async function loadPerformance(round){
+  const status = document.getElementById('perfStatus');
+  if(status) status.textContent = 'LOADING…';
+  const setLoad = id => { const e=document.getElementById(id); if(e) e.innerHTML='<div style="padding:18px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.3)">LOADING…</div>'; };
+  ['perfS1','perfS2','perfS3','perfSpeed','perfBestLap'].forEach(setLoad);
+
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 60000);
+    const [secR, spdR] = await Promise.all([
+      fetch(`/f1/replay/sector-times/${currentYear}/${round}`, {signal:ctrl.signal}),
+      fetch(`/f1/replay/speed-trap/${currentYear}/${round}`, {signal:ctrl.signal}),
+    ]);
+    clearTimeout(tid);
+    const sec = await secR.json();
+    const spd = await spdR.json();
+    if(sec.error) throw new Error(sec.error);
+    if(spd.error) throw new Error(spd.error);
+    perfData = {sec, spd};
+    if(status) status.textContent = '';
+    renderPerformanceLeaderboard('perfS1', sec.drivers, 'best_s1', 's', false);
+    renderPerformanceLeaderboard('perfS2', sec.drivers, 'best_s2', 's', false);
+    renderPerformanceLeaderboard('perfS3', sec.drivers, 'best_s3', 's', false);
+    renderPerformanceLeaderboard('perfBestLap', sec.drivers, 'best_lap', 's', false);
+    renderPerformanceLeaderboard('perfSpeed', spd.drivers, 'top_speed_kph', ' km/h', true);
+  } catch(e){
+    const msg = e.name==='AbortError' ? 'TIMED OUT — FastF1 slow, try again' : e.message;
+    if(status) status.textContent = '';
+    ['perfS1','perfS2','perfS3','perfSpeed','perfBestLap'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = `<div style="padding:18px;text-align:center;font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);letter-spacing:2px">⚠ ${msg}</div>`;
+    });
+  }
+}
+
+function renderPerformanceLeaderboard(elId, rows, key, suffix, descending){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const filtered = rows.filter(r => r[key] != null);
+  if(!filtered.length){ el.innerHTML = '<div style="padding:14px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;color:rgba(255,255,255,.3)">— NO DATA —</div>'; return; }
+  filtered.sort((a,b) => descending ? b[key]-a[key] : a[key]-b[key]);
+  const top = filtered.slice(0, 10);
+  const best = top[0][key];
+  const worst = top[top.length-1][key];
+  const span = Math.max(0.001, Math.abs(worst - best));
+
+  el.innerHTML = top.map((r,i) => {
+    const team = r.team || '';
+    const teamColor = (typeof tc === 'function') ? tc(team) : '#E10600';
+    const pct = descending ? 35 + 65*((r[key]-worst)/span) : 30 + 70*(1 - (r[key]-best)/span);
+    const val = key.startsWith('best_') ? r[key].toFixed(3) : r[key].toFixed(1);
+    const delta = i===0 ? '' : (descending
+      ? `<span style="color:rgba(255,255,255,.4)"> -${(best-r[key]).toFixed(1)}</span>`
+      : `<span style="color:rgba(255,255,255,.4)"> +${(r[key]-best).toFixed(3)}</span>`);
+    return `<div class="bar-row" style="display:grid;grid-template-columns:50px 1fr 110px;gap:8px;align-items:center;padding:5px 0;font-family:Share Tech Mono,monospace;font-size:11px">
+      <span style="color:#fff;font-weight:700">${r.driver}</span>
+      <div style="background:rgba(255,255,255,.04);height:12px;border-radius:1px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${teamColor};transition:width .4s"></div>
+      </div>
+      <span style="text-align:right;color:rgba(255,255,255,.7)">${val}${suffix}${delta}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Strategy tab ───────────────────────────────────────────────────
+async function loadStrategy(round){
+  const status = document.getElementById('stratStatus');
+  if(status) status.textContent = 'LOADING…';
+  ['stratGantt','stratCompound','stratPits'].forEach(id => {
+    const e = document.getElementById(id);
+    if(e) e.innerHTML = '<div style="padding:18px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.3)">LOADING…</div>';
+  });
+
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 60000);
+    const r = await fetch(`/f1/replay/long-stints/${currentYear}/${round}`, {signal:ctrl.signal});
+    clearTimeout(tid);
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    stratData = d;
+    if(status) status.textContent = '';
+    renderStintGantt(d.stints || {});
+    renderCompoundUsage(d.stints || {});
+    renderPitStops(d.stints || {});
+  } catch(e){
+    const msg = e.name==='AbortError' ? 'TIMED OUT — FastF1 slow, try again' : e.message;
+    if(status) status.textContent = '';
+    ['stratGantt','stratCompound','stratPits'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = `<div style="padding:18px;text-align:center;font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);letter-spacing:2px">⚠ ${msg}</div>`;
+    });
+  }
+}
+
+const COMPOUND_COLORS = {SOFT:'#FF3333',MEDIUM:'#FFE500',HARD:'#FFFFFF',INTERMEDIATE:'#3FCB23',WET:'#0088FF',UNKNOWN:'#666666'};
+const COMPOUND_TEXT   = {SOFT:'#fff',MEDIUM:'#000',HARD:'#000',INTERMEDIATE:'#000',WET:'#fff',UNKNOWN:'#fff'};
+
+function renderStintGantt(stints){
+  const el = document.getElementById('stratGantt');
+  if(!el) return;
+  const codes = Object.keys(stints).filter(c => (stints[c]||[]).length).sort();
+  if(!codes.length){ el.innerHTML = '<div style="padding:18px;text-align:center;font-family:Share Tech Mono,monospace;font-size:10px;color:rgba(255,255,255,.3)">— NO STINT DATA —</div>'; return; }
+  let totalLaps = 0;
+  codes.forEach(c => stints[c].forEach(s => { if(s.end_lap > totalLaps) totalLaps = s.end_lap; }));
+  totalLaps = Math.max(1, totalLaps);
+  const rows = codes.map(code => {
+    const bars = (stints[code]||[]).map(s => {
+      const left = ((s.start_lap-1)/totalLaps)*100;
+      const w = ((s.end_lap - s.start_lap + 1)/totalLaps)*100;
+      const cls = (s.compound||'UNKNOWN').toUpperCase();
+      const bg = COMPOUND_COLORS[cls] || COMPOUND_COLORS.UNKNOWN;
+      const fg = COMPOUND_TEXT[cls] || '#fff';
+      return `<div title="${cls} · L${s.start_lap}-${s.end_lap} · ${s.laps} laps" style="position:absolute;top:0;height:100%;left:${left}%;width:${w}%;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:1px;font-family:Share Tech Mono,monospace">${s.laps}</div>`;
+    }).join('');
+    return `<div style="display:grid;grid-template-columns:50px 1fr;gap:10px;align-items:center;font-family:Share Tech Mono,monospace;font-size:10px;padding:3px 0">
+      <span style="color:#fff;font-weight:700">${code}</span>
+      <div style="position:relative;height:16px;background:rgba(255,255,255,.025);border-radius:1px;overflow:hidden">${bars}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div style="padding:8px 0;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.4);margin-bottom:6px">LAP 1 → LAP ${totalLaps}</div>${rows}`;
+}
+
+function renderCompoundUsage(stints){
+  const el = document.getElementById('stratCompound');
+  if(!el) return;
+  const totals = {};
+  Object.values(stints).forEach(arr => (arr||[]).forEach(s => {
+    const c = (s.compound||'UNKNOWN').toUpperCase();
+    totals[c] = (totals[c]||0) + s.laps;
+  }));
+  const entries = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){ el.innerHTML = '<div style="padding:14px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;color:rgba(255,255,255,.3)">— NO DATA —</div>'; return; }
+  const max = Math.max(...entries.map(([_,v])=>v));
+  el.innerHTML = entries.map(([compound, laps]) => {
+    const bg = COMPOUND_COLORS[compound] || COMPOUND_COLORS.UNKNOWN;
+    return `<div style="display:grid;grid-template-columns:90px 1fr 60px;gap:10px;align-items:center;padding:5px 0;font-family:Share Tech Mono,monospace;font-size:11px">
+      <span style="color:${bg};font-weight:700">● ${compound}</span>
+      <div style="background:rgba(255,255,255,.04);height:12px;border-radius:1px;overflow:hidden">
+        <div style="height:100%;width:${(laps/max)*100}%;background:${bg};opacity:.85"></div>
+      </div>
+      <span style="text-align:right;color:rgba(255,255,255,.7)">${laps} laps</span>
+    </div>`;
+  }).join('');
+}
+
+function renderPitStops(stints){
+  const el = document.getElementById('stratPits');
+  if(!el) return;
+  const counts = Object.entries(stints)
+    .map(([code, arr]) => ({code, pits: Math.max(0, (arr||[]).length - 1), stints: (arr||[]).length}))
+    .filter(r => r.stints > 0)
+    .sort((a,b) => b.pits - a.pits || a.code.localeCompare(b.code));
+  if(!counts.length){ el.innerHTML = '<div style="padding:14px;text-align:center;font-family:Share Tech Mono,monospace;font-size:9px;color:rgba(255,255,255,.3)">— NO DATA —</div>'; return; }
+  const max = Math.max(...counts.map(r=>r.pits), 1);
+  el.innerHTML = counts.slice(0,12).map(r => {
+    const pct = (r.pits/max)*100;
+    return `<div style="display:grid;grid-template-columns:50px 1fr 70px;gap:10px;align-items:center;padding:5px 0;font-family:Share Tech Mono,monospace;font-size:11px">
+      <span style="color:#fff;font-weight:700">${r.code}</span>
+      <div style="background:rgba(255,255,255,.04);height:12px;border-radius:1px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:#E10600;opacity:.85"></div>
+      </div>
+      <span style="text-align:right;color:rgba(255,255,255,.7)">${r.pits} stop${r.pits===1?'':'s'}</span>
+    </div>`;
+  }).join('');
+}
+
+// Wire round selectors
+document.getElementById('perfRoundSel')?.addEventListener('change', e => {
+  perfRound = parseInt(e.target.value);
+  if(perfRound) loadPerformance(perfRound);
+});
+document.getElementById('stratRoundSel')?.addEventListener('change', e => {
+  stratRound = parseInt(e.target.value);
+  if(stratRound) loadStrategy(stratRound);
+});
+
+// Boot the round selectors
+populateAnalyticsRounds();
+</script>
+<!-- ═══ AUTH UI: settings removal + profile dropdown · auto-injected ═══ -->
+<script>
+(function(){
+  function init(){
+    // 1. Remove any settings (gear) icon — match by SVG content path
+    document.querySelectorAll('.sidebar-bottom .nav-icon, aside .nav-icon[title="Settings"], aside a.nav-icon[title="Settings"]').forEach(el=>{
+      const svg = el.querySelector('svg');
+      if(!svg) return;
+      const isGear = /circle cx="12" cy="12" r="3"/.test(svg.outerHTML) &&
+                     /M19\.4 15/.test(svg.outerHTML);
+      if(isGear) el.remove();
+    });
+
+    // 2. User-avatar → clickable, with dropdown
+    const av = document.querySelector('.user-avatar');
+    if(!av) return;
+
+    // If avatar is an <a>, swap to <div> so we control click
+    if(av.tagName === 'A'){
+      const div = document.createElement('div');
+      div.className = av.className;
+      div.style.cssText = av.getAttribute('style') || '';
+      div.textContent = av.textContent;
+      av.parentNode.replaceChild(div, av);
+    }
+
+    const avatar = document.querySelector('.user-avatar');
+    avatar.id = avatar.id || 'userAvatar';
+    avatar.style.cursor = 'pointer';
+
+    // Set initials from current user
+    try {
+      const u = JSON.parse(localStorage.getItem('f1_currentUser')||'null');
+      if(u){
+        const a=(u.firstName||'?').charAt(0), b=(u.lastName||'?').charAt(0);
+        avatar.textContent = (a+b).toUpperCase();
+      }
+    } catch(e){}
+
+    // Make sure parent is positioned for absolute dropdown
+    const parent = avatar.closest('.sidebar-bottom') || avatar.parentElement;
+    if(parent && getComputedStyle(parent).position === 'static'){
+      parent.style.position = 'relative';
+    }
+
+    // Build dropdown
+    const menu = document.createElement('div');
+    menu.id = 'profileMenu';
+    menu.style.cssText = 'display:none;position:absolute;left:54px;bottom:0;background:#0e0e0e;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:6px;min-width:180px;z-index:1000;box-shadow:0 12px 32px rgba(0,0,0,.6)';
+    menu.innerHTML = `
+      <div id="profileMenuName" style="padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <button id="logoutBtn" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:transparent;border:none;color:#E10600;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1.5px;cursor:pointer;border-radius:4px;text-align:left">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        LOGOUT
+      </button>`;
+    parent.appendChild(menu);
+
+    avatar.addEventListener('click', e=>{
+      e.stopPropagation();
+      const open = menu.style.display !== 'none';
+      menu.style.display = open ? 'none' : 'block';
+      if(!open){
+        try {
+          const u = JSON.parse(localStorage.getItem('f1_currentUser')||'null');
+          document.getElementById('profileMenuName').textContent =
+            u ? `${u.firstName||''} ${u.lastName||''} · @${u.username||''}` : 'NOT SIGNED IN';
+        } catch(e){
+          document.getElementById('profileMenuName').textContent = 'NOT SIGNED IN';
+        }
+      }
+    });
+    document.getElementById('logoutBtn').addEventListener('click', ()=>{
+      localStorage.removeItem('f1_currentUser');
+      window.location.href = '/';
+    });
+    document.addEventListener('click', e=>{
+      if(menu.style.display==='none') return;
+      if(!menu.contains(e.target) && e.target !== avatar) menu.style.display='none';
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+
+</body>
+</html>

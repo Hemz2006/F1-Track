@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1Track.com — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #E10600;
+  --red2: #FF1801;
+  --dark: #0a0a0a;
+  --darker: #050505;
+  --panel: #0e0e0e;
+  --border: rgba(255,255,255,0.07);
+  --silver: #b0b0b0;
+  --white: #f0f0f0;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --blue: #3b82f6;
+  --teal: #00D2BE;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+
+body {
+  background: var(--darker);
+  color: var(--white);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  cursor: none;
+  overflow-x: hidden;
+}
+
+/* ── CURSOR ── */
+.cursor { position:fixed; width:10px; height:10px; background:var(--red); border-radius:50%; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); mix-blend-mode:screen; transition:transform .1s; }
+.cursor-ring { position:fixed; width:32px; height:32px; border:1px solid rgba(225,6,0,.45); border-radius:50%; pointer-events:none; z-index:9998; transform:translate(-50%,-50%); transition:all .15s ease; }
+
+/* ── SCANLINES ── */
+body::after { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px); pointer-events:none; z-index:9000; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  position: fixed; left:0; top:0; bottom:0; width:64px;
+  background: rgba(8,8,8,.96);
+  border-right: 1px solid var(--border);
+  display:flex; flex-direction:column; align-items:center;
+  padding: 16px 0;
+  z-index: 500;
+  backdrop-filter: blur(12px);
+}
+.sidebar-logo { width:44px; height:44px; margin-bottom:28px; }
+.sidebar-logo img { width:100%; border-radius:4px; }
+.nav-icon {
+  width:44px; height:44px; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:6px; cursor:pointer;
+  transition: all .2s;
+  color: rgba(255,255,255,.35);
+  font-size:18px;
+  position:relative;
+}
+.nav-icon:hover, .nav-icon.active { background:rgba(225,6,0,.12); color:var(--red); }
+.nav-icon.active::before { content:''; position:absolute; left:-1px; top:25%; bottom:25%; width:2px; background:var(--red); border-radius:0 2px 2px 0; }
+.nav-icon svg { width:20px; height:20px; }
+.sidebar-bottom { margin-top:auto; }
+.user-avatar { width:38px; height:38px; border-radius:50%; border:2px solid rgba(225,6,0,.4); display:flex; align-items:center; justify-content:center; font-family:'Orbitron',sans-serif; font-size:13px; font-weight:700; color:var(--red); cursor:pointer; background:rgba(225,6,0,.08); }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: fixed; top:0; left:64px; right:0; height:56px;
+  background: rgba(8,8,8,.95);
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 28px 0 24px;
+  z-index: 400;
+  backdrop-filter: blur(12px);
+}
+.topbar-left { display:flex; align-items:center; gap:24px; }
+.page-label { font-family:'Orbitron',sans-serif; font-size:13px; font-weight:700; letter-spacing:2px; color:var(--white); }
+.page-label span { color:var(--red); }
+.live-badge { display:flex; align-items:center; gap:6px; background:rgba(225,6,0,.12); border:1px solid rgba(225,6,0,.3); border-radius:100px; padding:4px 12px; font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--red); }
+.live-dot { width:6px; height:6px; background:var(--red); border-radius:50%; animation:blink 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.topbar-right { display:flex; align-items:center; gap:20px; }
+.clock { font-family:'Share Tech Mono',monospace; font-size:13px; color:rgba(255,255,255,.4); letter-spacing:1px; }
+.topbar-btn { background:var(--red); border:none; color:#fff; font-family:'Orbitron',sans-serif; font-size:10px; font-weight:700; letter-spacing:2px; padding:8px 16px; border-radius:3px; cursor:pointer; transition:all .2s; white-space:nowrap; }
+.topbar-btn:hover { background:var(--red2); box-shadow:0 4px 16px rgba(225,6,0,.4); transform:translateY(-1px); }
+
+/* ── MAIN ── */
+.main { margin-left:64px; padding-top:56px; min-height:100vh; }
+.content { padding:28px; display:grid; gap:20px; }
+
+/* ── GRID LAYOUTS ── */
+.row { display:grid; gap:20px; }
+.row-3 { grid-template-columns: 1.6fr 1fr 1fr; }
+.row-2 { grid-template-columns: 1fr 1fr; }
+.row-2b { grid-template-columns: 2fr 1.2fr; }
+
+/* ── PANEL ── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius:6px;
+  overflow:hidden;
+  position:relative;
+  animation: fadeUp .6s ease both;
+}
+.panel::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(to right, var(--red), transparent); }
+.panel-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px 12px;
+  border-bottom:1px solid var(--border);
+}
+.panel-title { font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; letter-spacing:2px; color:var(--white); }
+.panel-tag { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; color:var(--red); background:rgba(225,6,0,.1); padding:3px 8px; border-radius:2px; }
+.panel-body { padding:16px 18px; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── HERO STAT ROW ── */
+.hero-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+.hero-stat {
+  background:var(--panel); border:1px solid var(--border); border-radius:6px;
+  padding:20px 22px; position:relative; overflow:hidden;
+  animation:fadeUp .6s ease both;
+}
+.hero-stat::before { content:''; position:absolute; top:0;left:0;right:0;height:2px; background:linear-gradient(to right, var(--accent-color, var(--red)), transparent); }
+.hero-stat-label { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:3px; color:rgba(255,255,255,.35); text-transform:uppercase; margin-bottom:10px; }
+.hero-stat-val { font-family:'Orbitron',sans-serif; font-size:32px; font-weight:900; color:var(--white); line-height:1; }
+.hero-stat-val span { font-size:14px; color:rgba(255,255,255,.4); }
+.hero-stat-sub { font-size:13px; color:rgba(255,255,255,.45); margin-top:6px; font-weight:300; }
+.hero-stat-badge { position:absolute; top:16px; right:16px; font-family:'Share Tech Mono',monospace; font-size:9px; padding:3px 8px; border-radius:2px; }
+.badge-green { background:rgba(34,197,94,.12); color:var(--green); border:1px solid rgba(34,197,94,.25); }
+.badge-red { background:rgba(225,6,0,.12); color:var(--red); border:1px solid rgba(225,6,0,.25); }
+.badge-amber { background:rgba(245,158,11,.12); color:var(--amber); border:1px solid rgba(245,158,11,.25); }
+
+/* ── STANDINGS TABLE ── */
+.standings-table { width:100%; }
+.standings-row {
+  display:grid; grid-template-columns:28px 28px 1fr 60px 72px;
+  align-items:center; gap:10px;
+  padding:9px 4px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .18s;
+  border-radius:3px;
+}
+.standings-row:hover { background:rgba(255,255,255,.03); }
+.standings-row:last-child { border-bottom:none; }
+.s-pos { font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; color:rgba(255,255,255,.3); text-align:center; }
+.s-pos.p1 { color:var(--amber); }
+.s-pos.p2 { color:var(--silver); }
+.s-pos.p3 { color:#cd7f32; }
+.s-flag { font-size:14px; }
+.s-name { font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600; color:var(--white); }
+.s-team { font-size:11px; color:rgba(255,255,255,.35); font-weight:300; margin-top:1px; }
+.s-pts { font-family:'Orbitron',sans-serif; font-size:13px; font-weight:700; color:var(--white); text-align:right; }
+.s-bar-wrap { height:3px; background:rgba(255,255,255,.06); border-radius:2px; overflow:hidden; }
+.s-bar { height:100%; border-radius:2px; transition:width 1.2s cubic-bezier(.16,1,.3,1); }
+
+/* ── TOP 5 DRIVERS ── */
+.driver-cards { display:flex; flex-direction:column; gap:10px; }
+.driver-card {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px;
+  background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:5px;
+  transition:all .2s;
+  cursor:pointer;
+  position:relative; overflow:hidden;
+}
+.driver-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--team-c, var(--red)); }
+.driver-card:hover { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.04); transform:translateX(3px); }
+.driver-rank { font-family:'Orbitron',sans-serif; font-size:18px; font-weight:900; color:rgba(255,255,255,.15); width:28px; text-align:center; flex-shrink:0; }
+.driver-rank.gold { color:rgba(245,158,11,.6); }
+.driver-helmet { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px; }
+.driver-info { flex:1; }
+.driver-name { font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; color:var(--white); line-height:1.1; }
+.driver-abbr { font-family:'Share Tech Mono',monospace; font-size:10px; color:rgba(255,255,255,.35); letter-spacing:2px; }
+.driver-pts { font-family:'Orbitron',sans-serif; font-size:14px; font-weight:700; color:var(--white); }
+.driver-pts-label { font-family:'Share Tech Mono',monospace; font-size:8px; color:rgba(255,255,255,.3); letter-spacing:1px; }
+
+/* ── UPCOMING RACE ── */
+.race-hero {
+  position:relative; overflow:hidden;
+  background:linear-gradient(135deg, #1a0000 0%, #0a0000 60%, #050505 100%);
+  border-radius:5px; padding:22px;
+}
+.race-circuit-bg {
+  position:absolute; right:-20px; top:-10px; opacity:.05;
+  font-size:180px; font-family:'Orbitron',sans-serif; font-weight:900;
+  color:var(--red); line-height:1; user-select:none; pointer-events:none;
+}
+.race-country-flag { font-size:36px; margin-bottom:10px; display:block; }
+.race-round { font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--red); letter-spacing:3px; margin-bottom:6px; }
+.race-name { font-family:'Orbitron',sans-serif; font-size:18px; font-weight:900; line-height:1.1; margin-bottom:4px; }
+.race-circuit-name { font-size:13px; color:rgba(255,255,255,.4); font-weight:300; margin-bottom:18px; }
+.countdown-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px; }
+.countdown-cell { background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.08); border-radius:4px; padding:10px 6px; text-align:center; }
+.countdown-num { font-family:'Orbitron',sans-serif; font-size:22px; font-weight:900; color:var(--red); line-height:1; }
+.countdown-lbl { font-family:'Share Tech Mono',monospace; font-size:8px; color:rgba(255,255,255,.3); letter-spacing:1px; margin-top:3px; }
+.race-sessions { display:flex; flex-direction:column; gap:6px; }
+.race-session { display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:6px 10px; background:rgba(255,255,255,.03); border-radius:3px; }
+.rs-name { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1px; color:rgba(255,255,255,.5); }
+.rs-time { font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; color:var(--white); }
+.rs-badge-next { font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:1px; color:var(--green); background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.2); border-radius:2px; padding:2px 6px; }
+
+/* ── REPLAY BUTTON ── */
+.replay-btn {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  background:var(--red); border:none; color:#fff;
+  font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; letter-spacing:3px;
+  padding:14px 24px; border-radius:4px; cursor:pointer; width:100%; margin-top:16px;
+  transition:all .25s; position:relative; overflow:hidden;
+}
+.replay-btn::before { content:''; position:absolute; top:0; left:-100%; width:100%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent); transition:left .4s; }
+.replay-btn:hover { background:var(--red2); box-shadow:0 8px 28px rgba(225,6,0,.45); transform:translateY(-2px); }
+.replay-btn:hover::before { left:100%; }
+.replay-icon { font-size:18px; }
+
+/* ── RACE SELECTOR ── */
+.season-selector { margin-bottom:16px; display:flex; gap:8px; flex-wrap:wrap; }
+.season-btn { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:2px; padding:5px 14px; border:1px solid rgba(255,255,255,.1); border-radius:2px; background:transparent; color:rgba(255,255,255,.45); cursor:pointer; transition:all .2s; }
+.season-btn:hover { border-color:rgba(255,255,255,.3); color:var(--white); }
+.season-btn.active { border-color:var(--red); color:var(--red); background:rgba(225,6,0,.08); }
+
+.race-list { display:flex; flex-direction:column; gap:6px; max-height:340px; overflow-y:auto; padding-right:4px; }
+.race-list::-webkit-scrollbar { width:3px; }
+.race-list::-webkit-scrollbar-track { background:transparent; }
+.race-list::-webkit-scrollbar-thumb { background:rgba(225,6,0,.3); border-radius:2px; }
+.race-item {
+  display:grid; grid-template-columns:22px 26px 1fr auto;
+  align-items:center; gap:10px;
+  padding:9px 12px; border:1px solid rgba(255,255,255,.05);
+  border-radius:4px; cursor:pointer; transition:all .2s;
+  background:rgba(255,255,255,.01);
+}
+.race-item:hover { border-color:rgba(225,6,0,.3); background:rgba(225,6,0,.04); }
+.race-item.done { opacity:.55; }
+.race-item.next { border-color:rgba(225,6,0,.35); background:rgba(225,6,0,.06); }
+.ri-num { font-family:'Share Tech Mono',monospace; font-size:9px; color:rgba(255,255,255,.25); }
+.ri-flag { font-size:14px; }
+.ri-name { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:600; }
+.ri-name small { display:block; font-size:10px; color:rgba(255,255,255,.35); font-weight:300; font-family:'Share Tech Mono',monospace; letter-spacing:1px; }
+.ri-status { font-family:'Share Tech Mono',monospace; font-size:9px; padding:3px 7px; border-radius:2px; letter-spacing:1px; }
+.status-done { color:rgba(255,255,255,.3); background:rgba(255,255,255,.05); }
+.status-next { color:var(--green); background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.2); }
+.status-future { color:rgba(255,255,255,.2); }
+
+/* ── FAV TEAM PANEL ── */
+.fav-team-header { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+.fav-team-logo-wrap { width:56px; height:56px; border-radius:6px; border:1px solid rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.02); }
+.fav-team-logo-wrap svg { width:46px; height:46px; }
+.fav-team-name { font-family:'Orbitron',sans-serif; font-size:16px; font-weight:900; }
+.fav-team-pos { font-family:'Share Tech Mono',monospace; font-size:10px; color:rgba(255,255,255,.4); letter-spacing:2px; margin-top:3px; }
+
+.team-stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+.ts-cell { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:4px; padding:12px 10px; text-align:center; }
+.ts-num { font-family:'Orbitron',sans-serif; font-size:20px; font-weight:900; color:var(--white); }
+.ts-lbl { font-family:'Share Tech Mono',monospace; font-size:8px; color:rgba(255,255,255,.3); letter-spacing:1px; margin-top:3px; }
+
+.team-drivers { display:flex; gap:10px; }
+.td-card { flex:1; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:4px; padding:12px; position:relative; overflow:hidden; }
+.td-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--red); }
+.td-num { font-family:'Orbitron',sans-serif; font-size:28px; font-weight:900; color:rgba(255,255,255,.06); position:absolute; right:8px; top:6px; }
+.td-name { font-size:14px; font-weight:700; margin-bottom:2px; }
+.td-pts { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--red); letter-spacing:1px; }
+
+.team-results { margin-top:14px; }
+.tr-row { display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.04); font-size:13px; }
+.tr-race { color:rgba(255,255,255,.55); font-weight:300; }
+.tr-pos { font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; }
+.tr-pts { font-family:'Share Tech Mono',monospace; font-size:10px; color:rgba(255,255,255,.35); }
+.pos-gold { color:var(--amber); }
+.pos-silver { color:var(--silver); }
+.pos-bronze { color:#cd7f32; }
+.pos-normal { color:var(--white); }
+
+/* ── MINI CHART (sparkline) ── */
+.sparkline { display:flex; align-items:flex-end; gap:3px; height:40px; margin-top:10px; }
+.spark-bar { flex:1; border-radius:2px 2px 0 0; background:rgba(225,6,0,.6); transition:height .8s cubic-bezier(.16,1,.3,1); min-height:3px; }
+.spark-bar:hover { background:var(--red); }
+
+/* ── CIRCUIT MAP (abstract SVG) ── */
+.circuit-wrap { display:flex; justify-content:center; align-items:center; padding:10px 0; }
+
+/* ── TELEMETRY ROW ── */
+.telem-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:4px; }
+.telem-cell { background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.05); border-radius:4px; padding:10px 12px; }
+.telem-val { font-family:'Orbitron',sans-serif; font-size:16px; font-weight:700; color:var(--green); }
+.telem-lbl { font-family:'Share Tech Mono',monospace; font-size:8px; color:rgba(255,255,255,.3); letter-spacing:1px; margin-top:2px; }
+
+/* stagger delays */
+.panel:nth-child(1){animation-delay:.05s}
+.panel:nth-child(2){animation-delay:.1s}
+.panel:nth-child(3){animation-delay:.15s}
+.hero-stat:nth-child(1){animation-delay:.0s}
+.hero-stat:nth-child(2){animation-delay:.07s}
+.hero-stat:nth-child(3){animation-delay:.14s}
+.hero-stat:nth-child(4){animation-delay:.21s}
+
+@media(max-width:1100px){
+  .row-3{grid-template-columns:1fr 1fr}
+  .hero-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:768px){
+  .sidebar{width:0;overflow:hidden}
+  .main{margin-left:0}
+  .topbar{left:0}
+  .row-3,.row-2,.row-2b{grid-template-columns:1fr}
+  .hero-stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="F1Track" style="width:100%;height:100%;object-fit:contain">
+  </div>
+
+  <!-- Dashboard -->
+<a class="nav-icon active" title="Dashboard" href="{{ url_for('dashboard') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <rect x="3" y="3" width="7" height="7" rx="1"/>
+    <rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/>
+    <rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Race Replay" href="{{ url_for('replay') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <polygon points="5 3 19 12 5 21 5 3"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Standings" href="{{ url_for('standings') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Drivers" href="{{ url_for('drivers') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Circuits" href="{{ url_for('circuits') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M12 8v4l3 3"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Analytics" href="{{ url_for('analytics') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+</a>
+
+  <div class="sidebar-bottom" style="position:relative">
+    <div class="user-avatar" id="userAvatar" onclick="toggleProfileMenu(event)">LP</div>
+    <!-- Logout dropdown -->
+    <div id="profileMenu" style="display:none;position:absolute;left:54px;bottom:0;background:#0e0e0e;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:6px;min-width:180px;z-index:1000;box-shadow:0 12px 32px rgba(0,0,0,.6)">
+      <div id="profileMenuName" style="padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <button onclick="logoutUser()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:transparent;border:none;color:var(--red);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1.5px;cursor:pointer;border-radius:4px;text-align:left">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        LOGOUT
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ TOPBAR ═══ -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="page-label">DASH<span>BOARD</span></span>
+    <div class="live-badge"><div class="live-dot"></div>LIVE — BAHRAIN 2026</div>
+  </div>
+  <div class="topbar-right">
+    <span class="clock" id="clock">--:--:--</span>
+    <button class="topbar-btn" onclick="location.href='/replay'">▶ START REPLAY</button>
+  </div>
+</header>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<main class="main">
+<div class="content">
+
+  <!-- ROW 0: Hero Stats -->
+  <div class="hero-stats">
+    <div class="hero-stat" style="--accent-color:var(--amber)">
+      <div class="hero-stat-label">SEASON LEADER</div>
+      <div class="hero-stat-val">VER <span>MAX</span></div>
+      <div class="hero-stat-sub">Red Bull Racing</div>
+      <div class="hero-stat-badge badge-green">↑ 77 PTS AHEAD</div>
+    </div>
+    <div class="hero-stat" style="--accent-color:var(--red)">
+      <div class="hero-stat-label">RACE ROUND</div>
+      <div class="hero-stat-val">8 <span>/ 24</span></div>
+      <div class="hero-stat-sub">Miami Grand Prix — NEXT</div>
+      <div class="hero-stat-badge badge-amber">MAY 18</div>
+    </div>
+    <div class="hero-stat" id="constructorLeaderStat" style="--accent-color:var(--teal)">
+      <div class="hero-stat-label">CONSTRUCTOR LEADER</div>
+      <div class="hero-stat-val">—</div>
+      <div class="hero-stat-sub">Loading…</div>
+      <div class="hero-stat-badge badge-green">—</div>
+    </div>
+    <div class="hero-stat" style="--accent-color:var(--green)">
+      <div class="hero-stat-label">LAST RACE WINNER</div>
+      <div class="hero-stat-val">LEC <span>CHARLES</span></div>
+      <div class="hero-stat-sub">Ferrari — Monaco GP</div>
+      <div class="hero-stat-badge badge-red">P1</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: Standings + Top 5 + Upcoming -->
+  <div class="row row-3">
+
+    <!-- STANDINGS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">DRIVERS' CHAMPIONSHIP</span>
+        <span class="panel-tag">2026 SEASON</span>
+      </div>
+      <div class="panel-body" style="padding:10px 14px">
+        <div class="standings-table" id="standingsTable"></div>
+      </div>
+    </div>
+
+    <!-- TOP 5 DRIVERS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">TOP 5 DRIVERS</span>
+        <span class="panel-tag">BY POINTS</span>
+      </div>
+      <div class="panel-body">
+        <div class="driver-cards" id="top5Cards"></div>
+      </div>
+    </div>
+
+    <!-- UPCOMING RACE -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">NEXT RACE</span>
+        <span class="panel-tag">ROUND 8</span>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <div class="race-hero">
+          <div class="race-circuit-bg">MIA</div>
+          <span class="race-country-flag">🇺🇸</span>
+          <div class="race-round">// ROUND 08 — FORMULA 1 2026</div>
+          <div class="race-name">MIAMI<br>GRAND PRIX</div>
+          <div class="race-circuit-name">Miami International Autodrome</div>
+          <div class="countdown-grid" id="countdown"></div>
+          <div class="race-sessions">
+            <div class="race-session">
+              <span class="rs-name">FP1</span>
+              <span class="rs-time">FRI · 13:30 UTC</span>
+            </div>
+            <div class="race-session">
+              <span class="rs-name">SPRINT</span>
+              <span class="rs-time">SAT · 17:00 UTC</span>
+              <span class="rs-badge-next">NEXT</span>
+            </div>
+            <div class="race-session">
+              <span class="rs-name">QUALIFY</span>
+              <span class="rs-time">SAT · 21:00 UTC</span>
+            </div>
+            <div class="race-session">
+              <span class="rs-name">RACE</span>
+              <span class="rs-time">SUN · 20:00 UTC</span>
+            </div>
+          </div>
+          <button class="replay-btn" id="replay" onclick="location.href='/replay'">
+            <span class="replay-icon">⏮</span>
+            START RACE REPLAY
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ROW 2: Race Selector + Fav Team -->
+  <div class="row row-2b">
+
+    <!-- RACE SELECTOR -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">QUICK RACE SELECTOR</span>
+        <span class="panel-tag">REPLAY ARCHIVE</span>
+      </div>
+      <div class="panel-body">
+        <div class="season-selector">
+          <button class="season-btn active">2026</button>
+          <button class="season-btn">2025</button>
+          <button class="season-btn">2024</button>
+          <button class="season-btn">2023</button>
+          <button class="season-btn">2022</button>
+          <button class="season-btn">ALL TIME</button>
+        </div>
+        <div class="race-list" id="raceList"></div>
+      </div>
+    </div>
+
+    <!-- FAV TEAM STATS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">YOUR TEAM</span>
+        <span class="panel-tag" id="favTeamTag">FERRARI</span>
+      </div>
+      <div class="panel-body">
+        <div class="fav-team-header">
+          <div class="fav-team-logo-wrap" id="favTeamLogo">
+            <!-- Ferrari Horse SVG (replaced by JS based on user's selected team) -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="5" width="60" height="58" rx="4" fill="#E8002D"/>
+              <rect x="12" y="7" width="56" height="54" rx="3" fill="#fff"/>
+              <g fill="#1a1a1a" transform="translate(22,10)">
+                <ellipse cx="18" cy="28" rx="11" ry="15"/>
+                <ellipse cx="18" cy="16" rx="8" ry="9"/>
+                <ellipse cx="22" cy="10" rx="7" ry="8"/>
+                <path d="M18 6 Q13 2 15 8 Q11 4 13 10 Q9 6 11 12Z" fill="#1a1a1a"/>
+                <path d="M30 26 Q40 22 38 30 Q33 32 30 30Z"/>
+                <rect x="8" y="40" width="6" height="12" rx="2"/>
+                <rect x="16" y="38" width="6" height="14" rx="2"/>
+                <rect x="23" y="40" width="6" height="12" rx="2"/>
+              </g>
+              <rect x="10" y="64" width="60" height="11" rx="0" fill="#009246"/>
+              <rect x="10" y="64" width="60" height="4" rx="0" fill="#fff"/>
+            </svg>
+          </div>
+          <div>
+            <div class="fav-team-name" id="favTeamName">SCUDERIA<br>FERRARI</div>
+            <div class="fav-team-pos" id="favTeamPos">P— CONSTRUCTORS · 2026</div>
+          </div>
+        </div>
+
+        <div class="team-stat-grid">
+          <div class="ts-cell">
+            <div class="ts-num" style="color:var(--amber)" id="tsWins">—</div>
+            <div class="ts-lbl">WINS</div>
+          </div>
+          <div class="ts-cell">
+            <div class="ts-num" style="color:var(--silver)" id="tsPodiums">—</div>
+            <div class="ts-lbl">PODIUMS</div>
+          </div>
+          <div class="ts-cell">
+            <div class="ts-num" id="tsPoints">—</div>
+            <div class="ts-lbl">POINTS</div>
+          </div>
+          <div class="ts-cell">
+            <div class="ts-num" style="color:var(--green)" id="tsPolePos">—</div>
+            <div class="ts-lbl">POLE POS.</div>
+          </div>
+          <div class="ts-cell">
+            <div class="ts-num" id="tsFastestLap">—</div>
+            <div class="ts-lbl">FASTEST LAP</div>
+          </div>
+          <div class="ts-cell">
+            <div class="ts-num" style="color:var(--red)" id="tsPosition">—</div>
+            <div class="ts-lbl">POSITION</div>
+          </div>
+        </div>
+
+        <div class="team-drivers" id="teamDrivers">
+          <div class="td-card"><div class="td-num">—</div><div class="td-name">Loading…</div><div class="td-pts">— PTS</div></div>
+          <div class="td-card"><div class="td-num">—</div><div class="td-name">Loading…</div><div class="td-pts">— PTS</div></div>
+        </div>
+
+        <div class="team-results" style="margin-top:14px">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:8px">RECENT RESULTS</div>
+          <div id="teamRecentResults">
+            <div style="padding:14px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,255,255,.25);letter-spacing:2px">— LOADING —</div>
+          </div>
+        </div>
+
+        <!-- Points sparkline -->
+        <div style="margin-top:14px">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:6px">POINTS TRAJECTORY</div>
+          <div class="sparkline" id="sparkline"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /content -->
+</main>
+
+<script>
+// ── GLOBAL STATE (used across loaders for the YOUR TEAM panel) ───────
+let driverStandings = [];
+let scheduleAllRaces = [];
+let constructorStandings = [];
+
+// ── CURSOR ──────────────────────────────────────────────────────────
+const cursor=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px';});
+(function ar(){rx+=(mx-rx)*.14;ry+=(my-ry)*.14;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(ar)})();
+document.querySelectorAll('a,button,.nav-icon,.race-item,.driver-card,.season-btn,.team-num').forEach(el=>{
+  el.addEventListener('mouseenter',()=>ring.style.transform='translate(-50%,-50%) scale(1.8)');
+  el.addEventListener('mouseleave',()=>ring.style.transform='translate(-50%,-50%) scale(1)');
+});
+
+// ── CLOCK ────────────────────────────────────────────────────────────
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clock').textContent=
+    now.getUTCHours().toString().padStart(2,'0')+':'+
+    now.getUTCMinutes().toString().padStart(2,'0')+':'+
+    now.getUTCSeconds().toString().padStart(2,'0')+' UTC';
+}
+updateClock(); setInterval(updateClock,1000);
+
+// ── COUNTDOWN ────────────────────────────────────────────────────────
+function updateCountdown(targetISO){
+  const target=new Date(targetISO||'2026-12-31T00:00:00Z');
+  const diff=target-new Date();
+  const el=document.getElementById('countdown');
+  if(!el)return;
+  if(diff<=0){el.innerHTML='<div style="grid-column:1/-1;text-align:center;font-family:Orbitron,sans-serif;color:var(--red)">RACE DAY!</div>';return;}
+  const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+  el.innerHTML=`<div class="countdown-cell"><div class="countdown-num">${String(d).padStart(2,'0')}</div><div class="countdown-lbl">DAYS</div></div>
+     <div class="countdown-cell"><div class="countdown-num">${String(h).padStart(2,'0')}</div><div class="countdown-lbl">HRS</div></div>
+     <div class="countdown-cell"><div class="countdown-num">${String(m).padStart(2,'0')}</div><div class="countdown-lbl">MIN</div></div>
+     <div class="countdown-cell"><div class="countdown-num">${String(s).padStart(2,'0')}</div><div class="countdown-lbl">SEC</div></div>`;
+}
+
+// ── TEAM COLORS ──────────────────────────────────────────────────────
+const TC={
+  'Red Bull':'#1E41FF','McLaren':'#FF8000','Ferrari':'#E8002D',
+  'Mercedes':'#00D2BE','Williams':'#005AFF','Aston Martin':'#006F62',
+  'Alpine':'#0090FF','Haas':'#888888','Racing Bulls':'#4466FF',
+  'Kick Sauber':'#52E252','RB':'#4466FF','Sauber':'#52E252'
+};
+function tc(team){return TC[team]||'#E10600';}
+
+const FLAGS={
+  'VER':'🇳🇱','NOR':'🇬🇧','LEC':'🇲🇨','HAM':'🇬🇧','PIA':'🇦🇺',
+  'SAI':'🇪🇸','RUS':'🇬🇧','ALO':'🇪🇸','TSU':'🇯🇵','GAS':'🇫🇷',
+  'STR':'🇨🇦','HUL':'🇩🇪','MAG':'🇩🇰','OCO':'🇫🇷','BOT':'🇫🇮',
+  'ZHO':'🇨🇳','LAW':'🇳🇿','SAR':'🇺🇸','PER':'🇲🇽','BEA':'🇬🇧',
+  'ANT':'🇦🇷','DOO':'🇦🇺','HAD':'🇳🇿','BOR':'🇷🇺'
+};
+function flag(code){return FLAGS[code]||'🏁';}
+
+// ── LOADING STATE ─────────────────────────────────────────────────────
+function setLoading(id,msg='Loading...'){
+  const el=document.getElementById(id);
+  if(el)el.innerHTML=`<div style="padding:20px;text-align:center;font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.25)">${msg}</div>`;
+}
+
+// ── FETCH DRIVER STANDINGS ────────────────────────────────────────────
+async function loadStandings(year=2026){
+  setLoading('standingsTable','LOADING STANDINGS...');
+  setLoading('top5Cards','LOADING DRIVERS...');
+  try{
+    // 60s timeout — first standings load can be slow as FastF1 caches sessions
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 60000);
+    const res = await fetch(`/f1/standings/drivers/${year}`, {signal: ctrl.signal});
+    clearTimeout(tid);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    const drivers = data.driver_standings || [];
+    if(!drivers.length) throw new Error('No standings data yet for '+year);
+    driverStandings = drivers;   // expose globally for applyFavouriteTeam
+    tryRenderFavouriteTeam();
+    const maxPts = drivers[0]?.points || 1;
+
+    // Standings table — wrap in try so a single bad row can't blank the panel
+    try {
+      document.getElementById('standingsTable').innerHTML = drivers.slice(0,10).map(d=>{
+        const code = d.code || (d.driver||'').split(' ').pop().slice(0,3).toUpperCase();
+        const flagEmoji = (typeof flag === 'function') ? flag(code) : '🏁';
+        const teamColor = (typeof tc === 'function') ? tc(d.team) : '#E10600';
+        const w = Math.round((d.points||0)/maxPts*100);
+        const posCls = d.position===1?'p1':d.position===2?'p2':d.position===3?'p3':'';
+        return `<div class="standings-row">
+          <div class="s-pos ${posCls}">${d.position||''}</div>
+          <div class="s-flag">${flagEmoji}</div>
+          <div>
+            <div class="s-name">${d.driver||'—'}</div>
+            <div class="s-team">${d.team||''}</div>
+          </div>
+          <div class="s-pts">${d.points||0}</div>
+          <div>
+            <div class="s-bar-wrap"><div class="s-bar" style="background:${teamColor};width:0%" data-w="${w}"></div></div>
+          </div>
+        </div>`;
+      }).join('');
+      setTimeout(()=>document.querySelectorAll('.s-bar').forEach(b=>b.style.width=b.dataset.w+'%'),200);
+    } catch(e){
+      console.error('standingsTable render error', e);
+      document.getElementById('standingsTable').innerHTML =
+        `<div style="padding:20px;text-align:center;color:var(--amber);font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:2px">RENDER ERROR — ${e.message}</div>`;
+    }
+
+    // Top 5 cards — separate try
+    try {
+      const emojis=['🏆','🥈','🥉','4️⃣','5️⃣'];
+      document.getElementById('top5Cards').innerHTML = drivers.slice(0,5).map((d,i)=>{
+        const teamColor = (typeof tc === 'function') ? tc(d.team) : '#E10600';
+        return `<div class="driver-card" style="--team-c:${teamColor}">
+          <div class="driver-rank ${i===0?'gold':''}">${i+1}</div>
+          <div class="driver-helmet" style="background:${teamColor}22;border:1px solid ${teamColor}44">${emojis[i]}</div>
+          <div class="driver-info">
+            <div class="driver-name">${d.driver||'—'}</div>
+            <div class="driver-abbr">${d.code||''} · ${d.team||''}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="driver-pts">${d.points||0}</div>
+            <div class="driver-pts-label">PTS</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e){ console.error('top5Cards render error', e); }
+
+    // Update hero stat leader
+    try {
+      if(drivers[0]){
+        const card = document.querySelector('.hero-stat:first-child');
+        if(card){
+          const valEl = card.querySelector('.hero-stat-val');
+          const subEl = card.querySelector('.hero-stat-sub');
+          const badgeEl = card.querySelector('.hero-stat-badge');
+          const code = drivers[0].code || drivers[0].driver.split(' ').pop().toUpperCase().slice(0,3);
+          const firstName = drivers[0].driver.split(' ')[0].toUpperCase();
+          if(valEl) valEl.innerHTML = `${code} <span>${firstName}</span>`;
+          if(subEl) subEl.textContent = drivers[0].team || '';
+          if(badgeEl && drivers[1]){
+            const gap = Math.round(drivers[0].points - drivers[1].points);
+            badgeEl.textContent = `↑ ${gap} PTS AHEAD`;
+          }
+        }
+      }
+    } catch(e){ console.error('hero stat render error', e); }
+
+  } catch(e){
+    const msg = e.name === 'AbortError'
+      ? 'TIMED OUT — FastF1 backend slow. Click a season button to retry.'
+      : 'ERROR — ' + e.message;
+    document.getElementById('standingsTable').innerHTML =
+      `<div style="padding:20px;text-align:center;color:var(--red);font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:2px">${msg}<br>
+        <button onclick="loadStandings(${year})" style="margin-top:12px;background:rgba(225,6,0,.12);border:1px solid rgba(225,6,0,.4);color:var(--red);padding:6px 14px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;cursor:pointer">RETRY</button>
+      </div>`;
+    document.getElementById('top5Cards').innerHTML =
+      `<div style="padding:20px;text-align:center;color:rgba(255,255,255,.3);font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:2px">— NO DATA —</div>`;
+    console.error(e);
+  }
+}
+
+// ── FETCH SCHEDULE ────────────────────────────────────────────────────
+async function loadSchedule(year=2026){
+  setLoading('raceList','LOADING SCHEDULE...');
+  try{
+    const res=await fetch(`/f1/schedule/${year}`);
+    if(!res.ok)throw new Error(res.statusText);
+    const data=await res.json();
+    const races=data.races||[];
+    scheduleAllRaces = races;   // expose globally for loadTeamHistorical
+    tryRenderFavouriteTeam();
+    const today=new Date();
+
+    let nextFound=false;
+    const items=races.map(r=>{
+      const rDate=new Date(r.date);
+      let status='future';
+      if(rDate<today) status='done';
+      else if(!nextFound){status='next';nextFound=true;}
+      return {...r,status};
+    });
+
+    // Update countdown to next race
+    const next=items.find(r=>r.status==='next');
+    if(next){
+      const iv=setInterval(()=>updateCountdown(next.date+'T14:00:00Z'),1000);
+      updateCountdown(next.date+'T14:00:00Z');
+      // Update next race hero panel
+      const nameEl=document.querySelector('.race-name');
+      if(nameEl) nameEl.innerHTML=next.name.replace(' Grand Prix','<br>GRAND PRIX').toUpperCase();
+      const circEl=document.querySelector('.race-circuit-name');
+      if(circEl) circEl.textContent=next.circuit||next.location;
+    }
+
+    document.getElementById('raceList').innerHTML=items.map(r=>`
+      <div class="race-item ${r.status}" onclick="selectRace(${r.round})">
+        <div class="ri-num">${String(r.round).padStart(2,'0')}</div>
+        <div class="ri-flag">🏁</div>
+        <div class="ri-name">
+          ${r.name}
+          <small>${r.location}</small>
+        </div>
+        <div class="ri-status ${r.status==='done'?'status-done':r.status==='next'?'status-next':'status-future'}">
+          ${r.status==='done'?'DONE':r.status==='next'?'NEXT':'—'}
+        </div>
+      </div>`).join('');
+
+    // Update hero round badge
+    const roundEl=document.querySelector('.hero-stat:nth-child(2) .hero-stat-val');
+    if(roundEl && next) roundEl.innerHTML=`${next.round} <span>/ ${races.length}</span>`;
+
+  }catch(e){
+    document.getElementById('raceList').innerHTML=`<div style="padding:20px;text-align:center;color:var(--red);font-family:Share Tech Mono,monospace;font-size:10px">ERROR LOADING SCHEDULE</div>`;
+    console.error(e);
+  }
+}
+
+function selectRace(n){
+  document.querySelectorAll('.race-item').forEach(el=>el.classList.remove('next'));
+  const items=document.querySelectorAll('.race-item');
+  if(items[n-1]) items[n-1].classList.add('next');
+}
+
+// Season btn toggle
+document.querySelectorAll('.season-btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.season-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const year=parseInt(b.textContent)||2026;
+    if(!isNaN(year)){loadStandings(year);loadSchedule(year);}
+  });
+});
+
+// ── SPARKLINE (favourite team trajectory from standings) ─────────────
+async function loadSparkline(year=2026){
+  try{
+    const user = JSON.parse(localStorage.getItem("f1_currentUser")||'null');
+    const favTeam = (user && user.team) ? user.team : 'Ferrari';
+    const res=await fetch(`/f1/standings/constructors/${year}`);
+    if(!res.ok)return;
+    const data=await res.json();
+    const myTeam=data.constructor_standings?.find(t=>t.team===favTeam);
+    if(!myTeam) return;
+    // Synthesize a sparkline from total points (rough per-race estimate)
+    const total=myTeam.points;
+    const fake=Array.from({length:8},(_,i)=>Math.round(total*((i+1)/8)*(0.85+Math.random()*0.3)));
+    fake[fake.length-1]=total;
+    const sparkMax=Math.max(...fake);
+    document.getElementById('sparkline').innerHTML=fake.map((v,i)=>`
+      <div class="spark-bar" style="height:0%;transition-delay:${i*0.08}s" data-h="${Math.round(v/sparkMax*100)}"></div>`).join('');
+    setTimeout(()=>document.querySelectorAll('.spark-bar').forEach(b=>b.style.height=b.dataset.h+'%'),300);
+  }catch(e){console.warn('Sparkline error',e);}
+}
+
+// ── FETCH CONSTRUCTOR LEADER + apply favourite team ──────────────────
+async function loadConstructorLeader(year=2026){
+  try{
+    const res=await fetch(`/f1/standings/constructors/${year}`);
+    if(!res.ok) return;
+    const data=await res.json();
+    const teams=data.constructor_standings||[];
+    if(!teams.length) return;
+
+    constructorStandings = teams;   // expose globally
+
+    const leader = teams[0];
+    const card = document.getElementById('constructorLeaderStat');
+    if(card){
+      // Short tag for the team name (first word, max 4 chars)
+      const tag = (leader.team||'').split(' ')[0].slice(0,4).toUpperCase() || 'TEAM';
+      card.querySelector('.hero-stat-val').textContent = tag;
+      card.querySelector('.hero-stat-sub').textContent = leader.team || '';
+      const gap = teams[1] ? Math.round(leader.points - teams[1].points) : 0;
+      const badge = card.querySelector('.hero-stat-badge');
+      badge.textContent = gap > 0 ? `+${gap} PTS` : `${leader.points} PTS`;
+      badge.className = 'hero-stat-badge badge-green';
+      // Recolor card accent to team's primary
+      card.style.setProperty('--accent-color', tc(leader.team));
+    }
+
+    tryRenderFavouriteTeam();
+  }catch(e){
+    console.warn('Constructor leader load failed', e);
+  }
+}
+
+// Centralised re-renderer — runs whenever any of (driverStandings,
+// constructorStandings, scheduleAllRaces) updates. Idempotent.
+let _historyKickedOff = false;
+function tryRenderFavouriteTeam(){
+  // Need at least constructor standings to render the panel basics
+  if(!constructorStandings.length) return;
+  applyFavouriteTeam(constructorStandings);
+  // Once schedule is also loaded, kick off the per-race history fetch (only once per page load)
+  if(scheduleAllRaces.length && !_historyKickedOff){
+    _historyKickedOff = true;
+    // applyFavouriteTeam already queues loadTeamHistorical; nothing more here
+  }
+}
+
+// ── FAVOURITE TEAM PANEL (uses user's pick from registration) ────────
+function applyFavouriteTeam(constructorStandings){
+  const user = JSON.parse(localStorage.getItem("f1_currentUser")||'null');
+  const favTeam = (user && user.team) ? user.team : null;
+  if(!favTeam) return;   // No registered team → leave default Ferrari panel as-is
+
+  const tag  = document.getElementById('favTeamTag');
+  const name = document.getElementById('favTeamName');
+  const pos  = document.getElementById('favTeamPos');
+  const logo = document.getElementById('favTeamLogo');
+  if(!tag || !name || !pos || !logo) return;
+
+  // Find their team in the standings (case-insensitive, allow partial like "RB" / "Racing Bulls")
+  const lc = favTeam.toLowerCase();
+  let match = constructorStandings.find(t => (t.team||'').toLowerCase() === lc);
+  if(!match){
+    match = constructorStandings.find(t => (t.team||'').toLowerCase().includes(lc) || lc.includes((t.team||'').toLowerCase()));
+  }
+
+  // Display name (two lines like "SCUDERIA FERRARI")
+  const displayName = (TEAM_DISPLAY[favTeam] || favTeam).toUpperCase();
+  // Split into two lines on space if it has one
+  const parts = displayName.split(' ');
+  name.innerHTML = parts.length >= 2
+    ? `${parts[0]}<br>${parts.slice(1).join(' ')}`
+    : displayName;
+
+  tag.textContent = (favTeam.split(' ')[0]).toUpperCase();
+  pos.textContent = match
+    ? `P${match.position} CONSTRUCTORS · 2026`
+    : `— CONSTRUCTORS · 2026`;
+
+  // Replace logo with a simple team-colour shield (works for any team without
+  // needing 10 hand-drawn SVGs). Uses the team's primary colour.
+  const c = tc(favTeam);
+  const initials = parts.map(p=>p[0]).join('').slice(0,3).toUpperCase();
+  logo.innerHTML = `
+    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="6" width="68" height="68" rx="8" fill="${c}"/>
+      <rect x="9" y="9" width="62" height="62" rx="6" fill="rgba(0,0,0,.08)"/>
+      <text x="40" y="50" text-anchor="middle" fill="#fff" font-family="Orbitron,sans-serif" font-size="22" font-weight="900" letter-spacing="1">${initials}</text>
+    </svg>`;
+
+  // ── Update the stat grid from constructor standings ──
+  const setStat = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  if (match) {
+    setStat('tsWins',     match.wins ?? 0);
+    setStat('tsPoints',   Math.round(match.points || 0));
+    setStat('tsPosition', 'P' + match.position);
+  }
+
+  // ── Find this team's drivers in driver standings (already loaded) ──
+  // Use the same matching strategy: case-insensitive equal or partial.
+  const teamDrivers = driverStandings
+    .filter(d => {
+      const dt = (d.team || '').toLowerCase();
+      return dt === lc || dt.includes(lc) || lc.includes(dt);
+    })
+    .sort((a, b) => (b.points || 0) - (a.points || 0));
+
+  // ── Render the two driver cards ──
+  const tdEl = document.getElementById('teamDrivers');
+  if (tdEl) {
+    if (teamDrivers.length === 0) {
+      tdEl.innerHTML = `<div class="td-card" style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,.4)">— NO DRIVERS FOUND —</div>`;
+    } else {
+      tdEl.innerHTML = teamDrivers.slice(0, 2).map(d => {
+        const num = d.number || d.code || '—';
+        return `<div class="td-card">
+          <div class="td-num">${num}</div>
+          <div class="td-name">${d.driver || '—'}</div>
+          <div class="td-pts">${Math.round(d.points || 0)} PTS</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // ── Async: compute podiums, pole positions, fastest laps, and recent results ──
+  loadTeamHistorical(favTeam, teamDrivers.map(d => d.code));
+}
+
+// Fetch race results for completed rounds in parallel and aggregate per-team stats.
+// Cheap to call multiple times — the backend caches each session.
+async function loadTeamHistorical(favTeam, teamDriverCodes) {
+  const lc = (favTeam || '').toLowerCase();
+  const codeSet = new Set(teamDriverCodes.filter(Boolean));
+  const teamMatches = teamName => {
+    const t = (teamName || '').toLowerCase();
+    return t === lc || t.includes(lc) || lc.includes(t);
+  };
+
+  // Use the schedule we've already fetched (loadSchedule populates `schedule`)
+  let races = [];
+  try {
+    if (Array.isArray(scheduleAllRaces) && scheduleAllRaces.length) {
+      races = scheduleAllRaces.filter(r => r.status === 'done');
+    } else {
+      // Fallback fetch if schedule hasn't loaded yet
+      const r = await fetch('/f1/schedule/2026');
+      const d = await r.json();
+      races = (d.races || []).filter(rc => rc.status === 'done');
+    }
+  } catch (e) {
+    console.warn('Could not get race list for team history:', e);
+    return;
+  }
+  if (!races.length) {
+    document.getElementById('teamRecentResults').innerHTML =
+      '<div style="padding:14px;text-align:center;font-family:\'Share Tech Mono\',monospace;font-size:9px;color:rgba(255,255,255,.25);letter-spacing:2px">— NO COMPLETED RACES YET —</div>';
+    return;
+  }
+
+  // Fetch results for each completed round in parallel
+  const results = await Promise.all(races.map(async r => {
+    try {
+      const res = await fetch(`/f1/race-results/2026/${r.round}`);
+      const d = await res.json();
+      if (d.error) return null;
+      return { meta: r, data: d };
+    } catch { return null; }
+  }));
+  const valid = results.filter(Boolean);
+
+  // Aggregate
+  let podiums = 0, poles = 0, fastestLaps = 0;
+  const recent = [];
+
+  // Process oldest → newest, but display newest first
+  valid.forEach(({ meta, data }) => {
+    const teamRows = (data.results || []).filter(row =>
+      teamMatches(row.team) || codeSet.has((row.driver_code || '').toUpperCase())
+    );
+    if (!teamRows.length) return;
+
+    teamRows.forEach(row => {
+      if (row.position && row.position <= 3) podiums++;
+      if (row.grid_start === 1) poles++;
+      if (row.fastest_lap) fastestLaps++;
+    });
+
+    // Build per-race recent-result row (top 2 driver positions)
+    const positions = teamRows
+      .filter(r => r.position != null)
+      .sort((a, b) => a.position - b.position)
+      .slice(0, 2)
+      .map(r => 'P' + r.position);
+    const totalPts = teamRows.reduce((s, r) => s + (r.points || 0), 0);
+    recent.push({
+      name: meta.name,
+      round: meta.round,
+      positions: positions.join(' / ') || '—',
+      bestPos: teamRows.reduce((m, r) => Math.min(m, r.position || 99), 99),
+      pts: Math.round(totalPts),
+    });
+  });
+
+  // Update stat cells
+  const setStat = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  setStat('tsPodiums',    podiums);
+  setStat('tsPolePos',    poles);
+  setStat('tsFastestLap', fastestLaps);
+
+  // Render last 4 recent results, newest first
+  const recentEl = document.getElementById('teamRecentResults');
+  if (recentEl) {
+    const last4 = recent.slice(-4).reverse();
+    if (!last4.length) {
+      recentEl.innerHTML = '<div style="padding:14px;text-align:center;font-family:\'Share Tech Mono\',monospace;font-size:9px;color:rgba(255,255,255,.25);letter-spacing:2px">— NO RESULTS FOR THIS TEAM —</div>';
+    } else {
+      recentEl.innerHTML = last4.map(r => {
+        let posCls = 'pos-normal';
+        if (r.bestPos === 1) posCls = 'pos-gold';
+        else if (r.bestPos === 2) posCls = 'pos-silver';
+        else if (r.bestPos === 3) posCls = 'pos-bronze';
+        const shortName = r.name.replace(/\s*Grand Prix\s*$/i, ' GP');
+        return `<div class="tr-row">
+          <span class="tr-race">${shortName}</span>
+          <span class="tr-pos ${posCls}">${r.positions}</span>
+          <span class="tr-pts">+${r.pts} PTS</span>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+// Track whether driver standings + schedule have loaded so applyFavouriteTeam
+// can use both. We cache the schedule list for loadTeamHistorical.
+// (state already declared at top of script)
+
+// Pretty display names for two-line layout
+const TEAM_DISPLAY = {
+  'Red Bull':'Red Bull Racing',
+  'Red Bull Racing':'Red Bull Racing',
+  'Ferrari':'Scuderia Ferrari',
+  'Mercedes':'Mercedes AMG',
+  'McLaren':'McLaren F1',
+  'Aston Martin':'Aston Martin',
+  'Alpine':'Alpine F1',
+  'Williams':'Williams Racing',
+  'Haas':'Haas F1',
+  'Kick Sauber':'Kick Sauber',
+  'Sauber':'Kick Sauber',
+  'Racing Bulls':'Racing Bulls',
+  'RB':'Racing Bulls',
+};
+
+// ── INIT ─────────────────────────────────────────────────────────────
+loadStandings(2026);
+loadSchedule(2026);
+loadConstructorLeader(2026);
+loadSparkline(2026);
+
+// ── PROFILE MENU + LOGOUT ───────────────────────────────────────────
+function toggleProfileMenu(ev){
+  ev.stopPropagation();
+  const menu = document.getElementById('profileMenu');
+  const isOpen = menu.style.display !== 'none';
+  menu.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen){
+    const user = JSON.parse(localStorage.getItem("f1_currentUser")||'null');
+    document.getElementById('profileMenuName').textContent =
+      user ? `${user.firstName||''} ${user.lastName||''} · @${user.username||''}` : 'NOT SIGNED IN';
+  }
+}
+function logoutUser(){
+  localStorage.removeItem('f1_currentUser');
+  // Keep f1_users so they can log back in. Send to landing page.
+  window.location.href = '/';
+}
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('profileMenu');
+  const av = document.getElementById('userAvatar');
+  if(menu && menu.style.display !== 'none' && !menu.contains(e.target) && e.target !== av){
+    menu.style.display = 'none';
+  }
+});
+
+// User avatar initials
+const user = JSON.parse(localStorage.getItem("f1_currentUser")||'null');
+if(user){
+  const a = (user.firstName||'?').charAt(0);
+  const b = (user.lastName ||'?').charAt(0);
+  const av = document.querySelector(".user-avatar");
+  if(av) av.textContent = (a + b).toUpperCase();
+}
+</script>
+</body>
+</html>

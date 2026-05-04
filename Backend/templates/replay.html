@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1Track.com — Race Replay</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--red:#E10600;--darker:#050505;--dark:#0a0a0a;--panel:#0e0e0e;--border:rgba(255,255,255,0.07);--white:#f0f0f0;--green:#22c55e;--amber:#f59e0b;--yellow:#FFD700}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--darker);color:var(--white);font-family:'Rajdhani',sans-serif;cursor:none;display:flex;flex-direction:column}
+button,select{font-family:inherit;cursor:none}
+.cursor{position:fixed;width:10px;height:10px;background:var(--red);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen}
+.cursor-ring{position:fixed;width:28px;height:28px;border:1px solid rgba(225,6,0,.45);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:transform .12s ease}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.02) 2px,rgba(0,0,0,.02) 4px);pointer-events:none;z-index:8000}
+.topbar{height:54px;background:rgba(6,6,6,.98);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:18px;flex-shrink:0;position:relative;z-index:100}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,var(--red),transparent 60%)}
+.tb-logo{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;color:var(--red);letter-spacing:2.5px}
+.topbar a[href="/dashboard"]:hover{color:var(--red);border-color:rgba(225,6,0,.4);background:rgba(225,6,0,.06)}
+.tb-sep{width:1px;height:28px;background:var(--border)}
+.tb-page{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--white)}
+.tb-page span{color:var(--red)}
+.tb-race{margin-left:auto;display:flex;align-items:center;gap:14px}
+.tb-race-name{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--white)}
+.tb-race-sub{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.35);margin-top:2px}
+.selector{display:flex;align-items:center;gap:8px}
+.selector select{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:3px;color:var(--white);padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1.5px;outline:none;max-width:280px}
+.selector select:hover{border-color:rgba(225,6,0,.4)}
+.selector select option{background:var(--dark);color:var(--white)}
+.btn-load{padding:6px 14px;font-size:10px;letter-spacing:2px;background:rgba(225,6,0,.12);border:1px solid rgba(225,6,0,.4);color:var(--red);border-radius:2px;font-family:'Share Tech Mono',monospace;font-weight:700}
+.btn-load:hover{background:rgba(225,6,0,.22)}
+.clock{font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px}
+.live-pill{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:rgba(255,255,255,.45)}
+.live-pill.on{background:rgba(225,6,0,.12);border-color:rgba(225,6,0,.4);color:var(--red)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.body{flex:1;display:grid;grid-template-columns:200px 1fr 280px;overflow:hidden;min-height:0}
+.tabs{background:rgba(8,8,8,.98);border-right:1px solid var(--border);overflow-y:auto;padding:8px 0}
+.tabs::-webkit-scrollbar{width:2px}
+.tabs::-webkit-scrollbar-thumb{background:rgba(225,6,0,.3)}
+.tab{display:block;padding:12px 18px;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;color:rgba(255,255,255,.55);border:none;border-left:3px solid transparent;background:none;width:100%;text-align:left;letter-spacing:.5px;transition:all .15s}
+.tab:hover{color:var(--white);background:rgba(255,255,255,.02)}
+.tab.active{color:var(--red);background:linear-gradient(to right,rgba(225,6,0,.12),transparent);border-left-color:var(--red);font-weight:700}
+.tab-section{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2.5px;color:rgba(255,255,255,.25);padding:14px 18px 6px;margin-top:6px;border-top:1px solid var(--border)}
+.tab-section:first-of-type{border-top:none;margin-top:0}
+.main{padding:20px 26px;overflow:auto;display:flex;flex-direction:column;min-height:0}
+.main::-webkit-scrollbar{width:4px}
+.main::-webkit-scrollbar-thumb{background:rgba(225,6,0,.4);border-radius:2px}
+.panel-title{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;color:var(--white);padding-bottom:10px;border-bottom:1px solid var(--border);position:relative;margin-bottom:6px}
+.panel-title::after{content:'';position:absolute;bottom:-1px;left:0;width:90px;height:1px;background:var(--red)}
+.panel-sub{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.4);margin-bottom:14px}
+.viz-holder{flex:1;min-height:0;display:flex;flex-direction:column;background:rgba(255,255,255,.015);border:1px solid var(--border);border-radius:4px;overflow:hidden;position:relative}
+.viz-svg{flex:1;width:100%;height:100%;display:block}
+.viz-empty{display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,.25);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;text-align:center;padding:40px}
+.viz-empty strong{color:var(--red);display:block;font-size:13px;margin-bottom:6px}
+.bars{padding:14px;overflow-y:auto;height:100%}
+.bar-row{display:grid;grid-template-columns:60px 1fr 130px;gap:10px;align-items:center;padding:5px 0;font-family:'Share Tech Mono',monospace;font-size:11px}
+.bar-row .code{color:var(--white);font-weight:700}
+.bar-bg{background:rgba(255,255,255,.04);height:14px;border-radius:1px;overflow:hidden}
+.bar-fg{height:100%;transition:width .4s}
+.bar-row .val{text-align:right;color:rgba(255,255,255,.7)}
+.stints{padding:8px 0;display:flex;flex-direction:column;gap:3px;overflow-y:auto;height:100%}
+.stint-row{display:grid;grid-template-columns:60px 1fr;gap:10px;align-items:center;font-family:'Share Tech Mono',monospace;font-size:10px;padding:3px 14px}
+.stint-bar-track{position:relative;height:16px;background:rgba(255,255,255,.025);border-radius:1px;overflow:hidden}
+.stint-bar{position:absolute;top:0;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#000;font-weight:700;letter-spacing:1px}
+.stint-bar.SOFT{background:#FF3333;color:#fff}
+.stint-bar.MEDIUM{background:#FFE500}
+.stint-bar.HARD{background:#FFFFFF}
+.stint-bar.INTERMEDIATE{background:#3FCB23}
+.stint-bar.WET{background:#0088FF;color:#fff}
+.stint-bar.UNKNOWN{background:#666;color:#fff}
+.tel-grid{display:grid;grid-template-rows:1fr 1fr 1fr;gap:8px;height:100%;padding:10px}
+.tel-pane{position:relative;border:1px solid var(--border);background:rgba(0,0,0,.3);border-radius:3px;overflow:hidden}
+.tel-pane-label{position:absolute;top:6px;left:8px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:rgba(255,255,255,.4);z-index:2}
+.tel-pane svg{width:100%;height:100%;display:block}
+.right{background:rgba(8,8,8,.98);border-left:1px solid var(--border);overflow-y:auto;padding:18px 14px}
+.right::-webkit-scrollbar{width:2px}
+.right::-webkit-scrollbar-thumb{background:rgba(225,6,0,.3)}
+.right h3{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--white);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);position:relative}
+.right h3::after{content:'';position:absolute;bottom:-1px;left:0;width:30px;height:1px;background:var(--red)}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:18px}
+.dchip{display:flex;align-items:center;gap:6px;padding:5px 6px;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.5px;transition:all .15s}
+.dchip:hover{border-color:rgba(255,255,255,.18)}
+.dchip.hidden{opacity:.35}
+.dchip-line{flex-shrink:0;width:18px;height:3px;border-radius:1px}
+.dchip-code{flex:1;color:var(--white);text-align:left}
+.dchip-eye{flex-shrink:0;width:11px;height:11px;opacity:.6}
+.tlinfo{background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:3px;padding:12px 14px;font-family:'Share Tech Mono',monospace;font-size:10px}
+.tl-head{font-family:'Orbitron',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;color:var(--white);margin-bottom:10px}
+.tl-row{display:flex;justify-content:space-between;padding:4px 0;color:rgba(255,255,255,.55)}
+.tl-row b{color:var(--white);font-weight:700;font-family:'Orbitron',sans-serif}
+.tl-legend{display:flex;align-items:center;gap:7px;margin-top:8px;color:rgba(255,255,255,.55);font-size:9px;letter-spacing:1.5px}
+.tl-legend .yel{width:8px;height:8px;background:var(--yellow);border-radius:50%}
+.banner{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:8px 14px;border-radius:2px;margin-bottom:12px;display:none}
+.banner.warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--amber);display:block}
+.banner.err{background:rgba(225,6,0,.12);border:1px solid rgba(225,6,0,.4);color:var(--red);display:block}
+.loader{display:inline-flex;gap:4px;align-items:center;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4)}
+.loader::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;margin-left:6px}
+.live-row{display:grid;grid-template-columns:30px 4px 56px 1fr 80px;gap:8px;align-items:center;padding:6px 14px;font-family:'Share Tech Mono',monospace;font-size:10px;border-bottom:1px solid rgba(255,255,255,.03)}
+.live-row .pos{color:rgba(255,255,255,.5)}
+.live-row .bar{height:14px;border-radius:1px}
+.live-row .code{font-weight:700;color:var(--white)}
+.live-row .gap{color:rgba(255,255,255,.55)}
+.live-row .itv{text-align:right;color:rgba(255,255,255,.4)}
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="topbar">
+  <a href="/dashboard" title="Back to Dashboard" style="display:flex;align-items:center;gap:6px;color:rgba(255,255,255,.5);text-decoration:none;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:6px 10px;border:1px solid var(--border);border-radius:3px;transition:all .15s">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    DASHBOARD
+  </a>
+  <div class="tb-sep"></div>
+  <div class="tb-logo">F1TRACK</div>
+  <div class="tb-sep"></div>
+  <div class="tb-page">RACE <span>REPLAY</span></div>
+  <div class="tb-sep"></div>
+  <div class="selector">
+    <select id="selYear" title="Season"></select>
+    <select id="selRound" title="Round"></select>
+    <button class="btn-load" onclick="loadAll()">LOAD</button>
+  </div>
+  <div class="tb-race">
+    <div>
+      <div class="tb-race-name" id="raceName">— SELECT A RACE —</div>
+      <div class="tb-race-sub" id="raceSub">F1 RACE REPLAY · 2026 SEASON</div>
+    </div>
+    <div class="live-pill" id="livePill">OFFLINE</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<div class="body">
+  <nav class="tabs">
+    <div class="tab-section">VISUALIZATION</div>
+    <button class="tab active" data-tab="minisectors">Mini Sectors</button>
+    <button class="tab" data-tab="telemetry">Telemetry Trace</button>
+    <div class="tab-section">SECTORS</div>
+    <button class="tab" data-tab="bestS1">Best Sector 1</button>
+    <button class="tab" data-tab="bestS2">Best Sector 2</button>
+    <button class="tab" data-tab="bestS3">Best Sector 3</button>
+    <div class="tab-section">RACE PACE</div>
+    <button class="tab" data-tab="stints">Long Stints</button>
+    <button class="tab" data-tab="speedtrap">Speed Trap</button>
+    <div class="tab-section">REAL-TIME</div>
+    <button class="tab" data-tab="live">Live Mode</button>
+  </nav>
+
+  <main class="main">
+    <div class="panel-title" id="panelTitle">Mini Sectors</div>
+    <div class="panel-sub" id="panelSub">FASTEST DRIVER PER SEGMENT · TOGGLE DRIVERS ON THE RIGHT</div>
+    <div class="banner" id="banner"></div>
+    <div class="viz-holder" id="vizHolder">
+      <div class="viz-empty"><div><strong>NO RACE LOADED</strong>Pick a year and round, then hit LOAD</div></div>
+    </div>
+  </main>
+
+  <aside class="right">
+    <h3>DRIVERS</h3>
+    <div class="dgrid" id="driverGrid">
+      <div style="grid-column:1/-1;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.25);padding:14px 4px;text-align:center">— LOAD A RACE —</div>
+    </div>
+    <h3 style="margin-top:14px">TRACK LAYOUT</h3>
+    <div class="tlinfo">
+      <div class="tl-head" id="tlHead">— Awaiting data —</div>
+      <div class="tl-row"><span>TOTAL DRIVERS</span><b id="tlTotal">0</b></div>
+      <div class="tl-row"><span>VISIBLE</span><b id="tlVisible">0</b></div>
+      <div class="tl-row"><span>SECTORS</span><b id="tlSectors">25</b></div>
+      <div class="tl-legend"><span class="yel"></span>START LINE</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const state = {
+  year: null, round: null, session: null, miniSectors: null,
+  telemetry: {}, sectors: null, stints: null, speed: null,
+  visibility: new Map(), activeTab: 'minisectors',
+  livePoll: null, liveSession: null,
+};
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const fmtTime = s => {
+  if (s == null || isNaN(s)) return '—';
+  const m = Math.floor(s/60), ss = (s - m*60).toFixed(3);
+  return m > 0 ? `${m}:${ss.padStart(6,'0')}` : `${ss}s`;
+};
+
+// cursor + clock
+const cursor = $('#cursor'), ring = $('#cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px'});
+(function ar(){rx+=(mx-rx)*.14;ry+=(my-ry)*.14;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(ar)})();
+addEventListener('mouseover',e=>{if(e.target.matches('button,select,.tab,.dchip')) ring.style.transform='translate(-50%,-50%) scale(1.8)'});
+addEventListener('mouseout',()=>ring.style.transform='translate(-50%,-50%) scale(1)');
+function tickClock(){
+  const n = new Date();
+  $('#clock').textContent = `${String(n.getUTCHours()).padStart(2,'0')}:${String(n.getUTCMinutes()).padStart(2,'0')}:${String(n.getUTCSeconds()).padStart(2,'0')} UTC`;
+}
+tickClock(); setInterval(tickClock,1000);
+
+function banner(msg, kind='warn'){ const el=$('#banner'); el.className='banner '+kind; el.textContent=msg; }
+function clearBanner(){ $('#banner').className='banner'; $('#banner').textContent=''; }
+function vizLoading(label='LOADING'){ $('#vizHolder').innerHTML = `<div class="viz-empty"><div class="loader">${label}</div></div>`; }
+function vizEmpty(title, body){ $('#vizHolder').innerHTML = `<div class="viz-empty"><div><strong>${title}</strong>${body||''}</div></div>`; }
+
+// ── Selectors ──────────────────────────────────────────────────────
+async function initSelectors(){
+  let years = [], def = 2026;
+  try {
+    const r = await fetch('/f1/seasons');
+    const d = await r.json();
+    years = d.seasons || []; def = d.default || years[0] || 2026;
+  } catch { years = [2026,2025,2024,2023,2022,2021,2020,2019,2018]; }
+  const ySel = $('#selYear');
+  ySel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  ySel.value = def; state.year = def;
+  ySel.addEventListener('change', async ()=>{ state.year = parseInt(ySel.value); await populateRounds(state.year); });
+  await populateRounds(def);
+}
+
+async function populateRounds(year){
+  const rSel = $('#selRound');
+  rSel.innerHTML = '<option>…</option>'; rSel.disabled = true;
+  try {
+    const r = await fetch(`/f1/schedule/${year}`);
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const races = d.races || [];
+    rSel.innerHTML = races.map(rc=>{
+      const tag = rc.status==='done' ? '✓' : rc.status==='next' ? '●' : '·';
+      return `<option value="${rc.round}">R${String(rc.round).padStart(2,'0')} ${tag} ${rc.name}</option>`;
+    }).join('');
+    const done = races.filter(r=>r.status==='done');
+    if (!done.length && year > 2018) {
+      // No completed races in selected season — replay needs telemetry, so suggest last year.
+      banner(`No completed races in ${year} yet. Switching to ${year-1} for replay data.`, 'warn');
+      const ySel = $('#selYear');
+      if (ySel) { ySel.value = String(year-1); state.year = year-1; }
+      return populateRounds(year-1);
+    }
+    const def = done.length ? done[done.length-1].round : (races[0]?.round || 1);
+    rSel.value = def; state.round = def;
+  } catch (e) {
+    rSel.innerHTML = `<option>err: ${e.message}</option>`;
+    banner('Could not load schedule: ' + e.message, 'err');
+  } finally { rSel.disabled = false; }
+  rSel.onchange = ()=>{ state.round = parseInt(rSel.value); };
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────
+$$('.tab[data-tab]').forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.dataset.tab)));
+const TAB_TITLES = {
+  minisectors:['Mini Sectors','FASTEST DRIVER PER SEGMENT · TOGGLE DRIVERS ON THE RIGHT'],
+  telemetry:['Telemetry Trace','SPEED · THROTTLE · BRAKE — FASTEST LAP'],
+  bestS1:['Best Sector 1','PERSONAL BEST PER DRIVER'],
+  bestS2:['Best Sector 2','PERSONAL BEST PER DRIVER'],
+  bestS3:['Best Sector 3','PERSONAL BEST PER DRIVER'],
+  stints:['Long Stints','TYRE COMPOUND TIMELINE PER DRIVER'],
+  speedtrap:['Speed Trap','TOP SPEED PER DRIVER'],
+  live:['Live Mode','REAL-TIME POSITIONS & TELEMETRY · OPENF1'],
+};
+function switchTab(t){
+  state.activeTab = t;
+  $$('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===t));
+  if (t !== 'live' && state.livePoll){ clearInterval(state.livePoll); state.livePoll = null; $('#livePill').className='live-pill'; $('#livePill').textContent='OFFLINE'; }
+  renderActive();
+}
+function renderActive(){
+  const t = state.activeTab;
+  $('#panelTitle').textContent = TAB_TITLES[t][0];
+  $('#panelSub').textContent   = TAB_TITLES[t][1];
+  if (t === 'live') return renderLive();
+  if (!state.session) return vizEmpty('NO RACE LOADED','Pick a year and round, then hit LOAD');
+  if (t==='minisectors') return renderMiniSectors();
+  if (t==='telemetry')   return renderTelemetry();
+  if (t==='bestS1')      return renderBestSector(1);
+  if (t==='bestS2')      return renderBestSector(2);
+  if (t==='bestS3')      return renderBestSector(3);
+  if (t==='stints')      return renderStints();
+  if (t==='speedtrap')   return renderSpeedTrap();
+}
+
+// ── Load race ──────────────────────────────────────────────────────
+async function loadAll(){
+  const y = parseInt($('#selYear').value), r = parseInt($('#selRound').value);
+  if (!y || !r){ banner('Pick a season and round first','warn'); return; }
+  state.year=y; state.round=r;
+  state.session=null; state.miniSectors=null; state.telemetry={};
+  state.sectors=null; state.stints=null; state.speed=null;
+  state.visibility.clear();
+  banner(`Loading session ${y}/R${r} … FastF1 may take 10-60s on first load`, 'warn');
+  vizLoading('LOADING SESSION');
+  $('#raceName').textContent = `LOADING ${y} R${r}…`;
+  $('#driverGrid').innerHTML = '<div style="grid-column:1/-1;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.25);padding:14px 4px;text-align:center">LOADING DRIVERS…</div>';
+  try {
+    const r1 = await fetch(`/f1/replay/session-info/${y}/${r}`);
+    const d1 = await r1.json();
+    if (d1.error) throw new Error(d1.error);
+    state.session = d1;
+    d1.drivers.forEach((d,i)=>state.visibility.set(d.code, i<2));
+    $('#raceName').textContent = (d1.race_name||'').toUpperCase();
+    $('#raceSub').textContent  = `${d1.circuit||''} · ${d1.country||''} · ${d1.date||''} · ${d1.total_laps||'?'} LAPS`;
+    $('#tlHead').textContent   = d1.race_name || '';
+    $('#tlTotal').textContent  = d1.drivers.length;
+    renderDriverGrid();
+    clearBanner();
+    renderActive();
+  } catch (e) {
+    banner('Failed to load session: ' + e.message, 'err');
+    $('#vizHolder').innerHTML = `<div class="viz-empty"><div>
+      <strong>LOAD FAILED</strong>
+      <div style="margin-bottom:8px;text-transform:none;letter-spacing:.5px">${e.message}</div>
+      <div style="color:rgba(255,255,255,.35);margin-bottom:14px;text-transform:none;letter-spacing:.5px;max-width:420px;line-height:1.5">
+        FastF1 doesn't have telemetry for this round yet (race in progress / data not published / future race).
+        Try a different round or year.
+      </div>
+      <button onclick="loadAll()" style="background:rgba(225,6,0,.12);border:1px solid rgba(225,6,0,.4);color:var(--red);padding:8px 16px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;cursor:pointer">RETRY</button>
+    </div></div>`;
+    $('#raceName').textContent = '— LOAD FAILED —';
+  }
+}
+
+// ── Driver grid ────────────────────────────────────────────────────
+function renderDriverGrid(){
+  if (!state.session) return;
+  const html = state.session.drivers.map(d=>{
+    const hidden = !state.visibility.get(d.code);
+    const dash = d.line_style === 'dashed'
+      ? `background:repeating-linear-gradient(to right,${d.team_color} 0,${d.team_color} 4px,transparent 4px,transparent 7px)`
+      : `background:${d.team_color}`;
+    const eyeOn  = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    const eyeOff = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    return `<button class="dchip ${hidden?'hidden':''}" data-code="${d.code}" title="${d.full_name}\n${d.team}">
+      <span class="dchip-line" style="${dash}"></span>
+      <span class="dchip-code">${d.code}</span>
+      <svg class="dchip-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${hidden?eyeOff:eyeOn}</svg>
+    </button>`;
+  }).join('');
+  $('#driverGrid').innerHTML = html;
+  $$('.dchip').forEach(b=>b.addEventListener('click',()=>{
+    const code = b.dataset.code;
+    state.visibility.set(code, !state.visibility.get(code));
+    renderDriverGrid(); updateTlVisible(); renderActive();
+  }));
+  updateTlVisible();
+}
+function updateTlVisible(){
+  $('#tlVisible').textContent = [...state.visibility.values()].filter(Boolean).length;
+}
+
+// ── Mini Sectors ───────────────────────────────────────────────────
+async function renderMiniSectors(){
+  if (!state.miniSectors){
+    vizLoading('COMPUTING MINI-SECTORS');
+    try {
+      const r = await fetch(`/f1/replay/mini-sectors/${state.year}/${state.round}?n=25`);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      state.miniSectors = d;
+      $('#tlSectors').textContent = d.num_sectors;
+    } catch (e){ vizEmpty('MINI-SECTORS FAILED', e.message); return; }
+  }
+  drawMiniSectorTrack();
+}
+function drawMiniSectorTrack(){
+  const ms = state.miniSectors; if (!ms) return;
+  const drivers = state.session.drivers;
+  const colorByCode = Object.fromEntries(drivers.map(d=>[d.code, d.team_color]));
+  const N = ms.num_sectors;
+  const fastest = [];
+  for (let i=0;i<N;i++){
+    let best = null;
+    for (const d of drivers){
+      if (!state.visibility.get(d.code)) continue;
+      const arr = ms.drivers[d.code]; if (!arr) continue;
+      const t = arr[i]; if (t == null) continue;
+      if (best===null || t < best.time) best = {code:d.code, time:t, color:colorByCode[d.code]};
+    }
+    fastest.push(best);
+  }
+  const {x,y,distance} = ms.track;
+  const ys = y.map(v=>-v);
+  const xMin=Math.min(...x), xMax=Math.max(...x), yMin=Math.min(...ys), yMax=Math.max(...ys);
+  const trackSize = Math.max(xMax-xMin, yMax-yMin);
+  const pad = trackSize*0.06;
+  const sw = trackSize/70;
+  const vbX = xMin-pad, vbY = yMin-pad, vbW = (xMax-xMin)+2*pad, vbH = (yMax-yMin)+2*pad;
+  const segments = [];
+  const bnd = ms.boundaries;
+  for (let i=0;i<N;i++){
+    const a=bnd[i], b=bnd[i+1], pts=[];
+    for (let j=0;j<x.length;j++){
+      if (distance[j] >= a && distance[j] <= b) pts.push(`${x[j]},${ys[j]}`);
+    }
+    if (pts.length < 2) continue;
+    const color = fastest[i] ? fastest[i].color : '#3b3b3b';
+    segments.push({pts, color});
+  }
+  let startIdx = 0;
+  for (let j=1;j<distance.length;j++) if (distance[j] < distance[startIdx]) startIdx = j;
+  const sx = x[startIdx], sy = ys[startIdx];
+  const dotR = sw*0.9;
+  const bgPath = 'M ' + x.map((xv,i)=>`${xv},${ys[i]}`).join(' L ');
+  const segSvg = segments.map(s=>`<polyline points="${s.pts.join(' ')}" stroke="${s.color}" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  $('#vizHolder').innerHTML =
+    `<svg class="viz-svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet">`
+    + `<path d="${bgPath}" stroke="rgba(255,255,255,.05)" stroke-width="${sw*1.15}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+    + segSvg
+    + `<circle cx="${sx}" cy="${sy}" r="${dotR}" fill="#FFD700" stroke="#fff" stroke-width="${sw*0.12}"/>`
+    + `</svg>`;
+}
+
+// ── Telemetry trace ────────────────────────────────────────────────
+async function renderTelemetry(){
+  const visible = state.session.drivers.filter(d=>state.visibility.get(d.code));
+  if (!visible.length){ vizEmpty('NO DRIVERS SELECTED','Toggle drivers on the right panel'); return; }
+  vizLoading('LOADING TELEMETRY');
+  const need = visible.filter(d=>!state.telemetry[d.code]);
+  await Promise.all(need.map(async d=>{
+    try {
+      const r = await fetch(`/f1/replay/telemetry/${state.year}/${state.round}/${d.code}`);
+      const j = await r.json();
+      if (!j.error) state.telemetry[d.code] = j;
+    } catch {}
+  }));
+  const traces = visible.map(d=>({driver:d, tel:state.telemetry[d.code]})).filter(t=>t.tel);
+  if (!traces.length){ vizEmpty('NO TELEMETRY','FastF1 returned no data for these drivers'); return; }
+  const W=1000, H=220, padL=50, padR=14, padT=22, padB=22;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const dMax = Math.max(...traces.map(t=>Math.max(...t.tel.distance)));
+  function chart(title, key, yMax, yLabel, isBool=false){
+    const yTicks=[];
+    for (let i=0;i<=4;i++){
+      const v = (yMax*i)/4, y = padT + innerH - (v/yMax)*innerH;
+      yTicks.push(`<line x1="${padL}" x2="${W-padR}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.05)"/><text x="${padL-6}" y="${y+3}" fill="rgba(255,255,255,.4)" font-size="9" text-anchor="end" font-family="Share Tech Mono">${Math.round(v)}</text>`);
+    }
+    const xTicks=[];
+    for (let i=0;i<=4;i++){
+      const v = (dMax*i)/4, x = padL + (v/dMax)*innerW;
+      xTicks.push(`<text x="${x}" y="${H-4}" fill="rgba(255,255,255,.4)" font-size="9" text-anchor="middle" font-family="Share Tech Mono">${(v/1000).toFixed(1)}km</text>`);
+    }
+    const lines = traces.map(t=>{
+      const xs = t.tel.distance, ys = t.tel[key];
+      let pts = '';
+      for (let i=0;i<xs.length;i++){
+        const xv = padL + (xs[i]/dMax)*innerW;
+        const raw = isBool ? (ys[i]?yMax:0) : Math.min(yMax, Math.max(0, ys[i]));
+        const yv = padT + innerH - (raw/yMax)*innerH;
+        pts += `${xv.toFixed(1)},${yv.toFixed(1)} `;
+      }
+      const dash = t.driver.line_style==='dashed' ? 'stroke-dasharray="6 4"' : '';
+      return `<polyline points="${pts}" stroke="${t.driver.team_color}" stroke-width="1.6" fill="none" ${dash} opacity=".95"/>`;
+    }).join('');
+    return `<div class="tel-pane"><div class="tel-pane-label">${title}${yLabel?' · '+yLabel:''}</div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <rect x="${padL}" y="${padT}" width="${innerW}" height="${innerH}" fill="rgba(255,255,255,.015)"/>
+        ${yTicks.join('')}${xTicks.join('')}${lines}
+      </svg></div>`;
+  }
+  $('#vizHolder').innerHTML = `<div class="tel-grid">
+    ${chart('SPEED','speed',360,'km/h')}
+    ${chart('THROTTLE','throttle',100,'%')}
+    ${chart('BRAKE','brake',1,'on/off',true)}
+  </div>`;
+}
+
+// ── Best sectors / speed trap (bar charts) ─────────────────────────
+async function ensureSectors(){
+  if (state.sectors) return;
+  const r = await fetch(`/f1/replay/sector-times/${state.year}/${state.round}`);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  state.sectors = d;
+}
+async function renderBestSector(n){
+  vizLoading('LOADING SECTORS');
+  try { await ensureSectors(); } catch(e){ vizEmpty('SECTORS FAILED', e.message); return; }
+  const key = `best_s${n}`;
+  const colorByCode = Object.fromEntries(state.session.drivers.map(d=>[d.code, d.team_color]));
+  const rows = state.sectors.drivers
+    .map(r=>({...r, time:r[key]}))
+    .filter(r=>r.time != null && state.visibility.get(r.driver))
+    .sort((a,b)=>a.time - b.time);
+  if (!rows.length){ vizEmpty('NO DATA','No sector data for visible drivers'); return; }
+  const best = rows[0].time, worst = rows[rows.length-1].time;
+  const span = Math.max(0.001, worst-best);
+  $('#vizHolder').innerHTML = `<div class="bars">${rows.map(r=>{
+    const pct = 30 + 70 * (1 - (r.time-best)/span);
+    const delta = (r.time-best).toFixed(3);
+    const sub = r===rows[0] ? '' : `<span style="color:rgba(255,255,255,.4)"> +${delta}</span>`;
+    return `<div class="bar-row">
+      <span class="code">${r.driver}</span>
+      <div class="bar-bg"><div class="bar-fg" style="width:${pct}%;background:${colorByCode[r.driver]||'#888'}"></div></div>
+      <span class="val">${r.time.toFixed(3)}s${sub}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+async function renderSpeedTrap(){
+  vizLoading('LOADING SPEED TRAP');
+  if (!state.speed){
+    try {
+      const r = await fetch(`/f1/replay/speed-trap/${state.year}/${state.round}`);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      state.speed = d;
+    } catch(e){ vizEmpty('SPEED TRAP FAILED', e.message); return; }
+  }
+  const colorByCode = Object.fromEntries(state.session.drivers.map(d=>[d.code, d.team_color]));
+  const rows = (state.speed.drivers||[]).filter(r=>state.visibility.get(r.driver));
+  if (!rows.length){ vizEmpty('NO DRIVERS SELECTED','Toggle drivers on the right panel'); return; }
+  const top = rows[0].top_speed_kph, bot = rows[rows.length-1].top_speed_kph;
+  const span = Math.max(0.1, top-bot);
+  $('#vizHolder').innerHTML = `<div class="bars">${rows.map(r=>{
+    const pct = 35 + 65 * ((r.top_speed_kph - bot)/span);
+    return `<div class="bar-row">
+      <span class="code">${r.driver}</span>
+      <div class="bar-bg"><div class="bar-fg" style="width:${pct}%;background:${colorByCode[r.driver]||'#888'}"></div></div>
+      <span class="val">${r.top_speed_kph.toFixed(1)} km/h</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── Stints ─────────────────────────────────────────────────────────
+async function renderStints(){
+  vizLoading('LOADING STINTS');
+  if (!state.stints){
+    try {
+      const r = await fetch(`/f1/replay/long-stints/${state.year}/${state.round}`);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      state.stints = d;
+    } catch(e){ vizEmpty('STINTS FAILED', e.message); return; }
+  }
+  const stints = state.stints.stints || {};
+  const totalLaps = state.session.total_laps || 1;
+  const drivers = state.session.drivers.filter(d=>state.visibility.get(d.code));
+  if (!drivers.length){ vizEmpty('NO DRIVERS SELECTED','Toggle drivers on the right panel'); return; }
+  const rows = drivers.map(d=>{
+    const ds = stints[d.code] || [];
+    const bars = ds.map(s=>{
+      const left = ((s.start_lap-1)/totalLaps)*100;
+      const w = ((s.end_lap-s.start_lap+1)/totalLaps)*100;
+      const cls = (s.compound||'UNKNOWN').toUpperCase();
+      return `<div class="stint-bar ${cls}" style="left:${left}%;width:${w}%" title="${cls} · L${s.start_lap}-${s.end_lap} · avg ${fmtTime(s.avg_lap_time_sec)}">${s.laps}</div>`;
+    }).join('');
+    return `<div class="stint-row"><span class="code" style="color:${d.team_color}">${d.code}</span><div class="stint-bar-track">${bars}</div></div>`;
+  }).join('');
+  $('#vizHolder').innerHTML = `<div class="stints">
+    <div style="padding:8px 14px;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.4)">LAP 1 → LAP ${totalLaps}</div>
+    ${rows}
+  </div>`;
+}
+
+// ── Live mode (OpenF1) ─────────────────────────────────────────────
+async function renderLive(){
+  vizLoading('CHECKING FOR LIVE SESSION');
+  try {
+    const r = await fetch('/f1/live/current-session');
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    if (!d.session){ vizEmpty('NO ACTIVE SESSION','OpenF1 reports no current session'); $('#livePill').className='live-pill'; $('#livePill').textContent='OFFLINE'; return; }
+    state.liveSession = d.session;
+    const sk = d.session.session_key;
+    let drv = [];
+    try { const dr = await fetch(`/f1/live/drivers/${sk}`); drv = (await dr.json()).drivers || []; } catch {}
+    const isLive = (() => {
+      try { const s = new Date(d.session.date_start), e = new Date(d.session.date_end), n = new Date(); return n>=s && n<=e; }
+      catch { return false; }
+    })();
+    $('#livePill').className = isLive ? 'live-pill on' : 'live-pill';
+    $('#livePill').innerHTML = isLive
+      ? '<span class="live-dot"></span>LIVE · ' + (d.session.session_name||'F1')
+      : 'IDLE · ' + (d.session.session_name||'F1');
+    drawLiveDashboard(d.session, drv, isLive);
+    if (state.livePoll) clearInterval(state.livePoll);
+    state.livePoll = setInterval(()=>updateLivePositions(sk, drv), 5000);
+    updateLivePositions(sk, drv);
+  } catch (e){ vizEmpty('LIVE FAILED', e.message); }
+}
+function drawLiveDashboard(session, drv, isLive){
+  $('#vizHolder').innerHTML = `
+    <div style="padding:14px;display:grid;grid-template-rows:auto 1fr;gap:12px;height:100%;overflow:hidden">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div class="tlinfo"><div class="tl-row"><span>SESSION</span><b>${session.session_name||'—'}</b></div></div>
+        <div class="tlinfo"><div class="tl-row"><span>CIRCUIT</span><b>${session.circuit_short_name||'—'}</b></div></div>
+        <div class="tlinfo"><div class="tl-row"><span>STATUS</span><b style="color:${isLive?'var(--green)':'var(--amber)'}">${isLive?'LIVE':'IDLE'}</b></div></div>
+        <div class="tlinfo"><div class="tl-row"><span>DRIVERS</span><b>${drv.length}</b></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:12px;min-height:0">
+        <div class="tlinfo" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-family:Orbitron,sans-serif;font-size:11px;letter-spacing:2px">LIVE POSITIONS</div>
+          <svg id="liveMap" style="flex:1;width:100%;min-height:0" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div class="tlinfo" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-family:Orbitron,sans-serif;font-size:11px;letter-spacing:2px">LIVE TIMING</div>
+          <div id="liveTiming" style="flex:1;overflow-y:auto;padding:8px 0"></div>
+        </div>
+      </div>
+    </div>`;
+}
+async function updateLivePositions(sk, drv){
+  const drvByNum = Object.fromEntries(drv.map(d=>[d.driver_number, d]));
+  try {
+    const [posR, intR] = await Promise.all([
+      fetch(`/f1/live/positions/${sk}`),
+      fetch(`/f1/live/intervals/${sk}`),
+    ]);
+    const pos = await posR.json();
+    const itv = await intR.json();
+    drawLiveMap(pos.positions || [], drvByNum);
+    drawLiveTiming(itv.intervals || [], drvByNum);
+  } catch (e){ console.warn('live update failed', e); }
+}
+function drawLiveMap(positions, drvByNum){
+  const map = document.getElementById('liveMap'); if (!map) return;
+  if (!positions.length){
+    map.setAttribute('viewBox','0 0 100 50');
+    map.innerHTML = `<text x="50" y="25" fill="rgba(255,255,255,.35)" font-family="Share Tech Mono" font-size="3" letter-spacing="1" text-anchor="middle">NO LIVE POSITION DATA</text>`;
+    return;
+  }
+  const xs = positions.map(p=>p.x), ys = positions.map(p=>-p.y);
+  const xMin=Math.min(...xs), xMax=Math.max(...xs), yMin=Math.min(...ys), yMax=Math.max(...ys);
+  const trackSize = Math.max(xMax-xMin, yMax-yMin) || 1;
+  const pad = trackSize*0.08;
+  map.setAttribute('viewBox', `${xMin-pad} ${yMin-pad} ${(xMax-xMin)+2*pad} ${(yMax-yMin)+2*pad}`);
+  const r = trackSize/60;
+  map.innerHTML = positions.map(p=>{
+    const d = drvByNum[p.driver_number] || {};
+    const color = d.team_colour ? '#'+d.team_colour : '#888';
+    const code = d.name_acronym || ('#'+p.driver_number);
+    return `<g><circle cx="${p.x}" cy="${-p.y}" r="${r}" fill="${color}" stroke="#fff" stroke-width="${r*0.18}"/>
+      <text x="${p.x + r*1.4}" y="${-p.y + r*0.4}" fill="#fff" font-family="Share Tech Mono" font-size="${r*1.2}" font-weight="700">${code}</text></g>`;
+  }).join('');
+}
+function drawLiveTiming(intervals, drvByNum){
+  const wrap = document.getElementById('liveTiming'); if (!wrap) return;
+  if (!intervals.length){
+    wrap.innerHTML = '<div style="padding:14px;font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4);text-align:center">NO INTERVALS YET</div>';
+    return;
+  }
+  intervals.sort((a,b)=>(a.gap_to_leader ?? 9e9) - (b.gap_to_leader ?? 9e9));
+  wrap.innerHTML = intervals.map((it,i)=>{
+    const d = drvByNum[it.driver_number] || {};
+    const code = d.name_acronym || ('#'+it.driver_number);
+    const color = d.team_colour ? '#'+d.team_colour : '#888';
+    const gap = it.gap_to_leader == null ? '—' : (i===0 ? 'LEADER' : `+${(+it.gap_to_leader).toFixed(3)}`);
+    const itvTxt = (it.interval == null || i===0) ? '' : `+${(+it.interval).toFixed(3)}`;
+    return `<div class="live-row">
+      <span class="pos">${String(i+1).padStart(2,'0')}</span>
+      <span class="bar" style="background:${color}"></span>
+      <span class="code">${code}</span>
+      <span class="gap">${gap}</span>
+      <span class="itv">${itvTxt}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Boot ───────────────────────────────────────────────────────────
+initSelectors();
+</script>
+</body>
+</html>

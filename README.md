@@ -1,154 +1,40 @@
-# 🏎️ F1 Race Tracking and Historical Statistics Visualization Platform
 
-An interactive platform that visualizes **Formula 1 race data** using a
-**2D race track simulation**, combined with **real-time and historical
-statistics** to help users analyze driver performance, race strategies,
-and outcomes.
+# F1 Track
 
-This project enables fans, students, and analysts to **replay races,
-study telemetry data, and explore historical Formula 1 statistics
-through an engaging visualization interface**.
+F1 Track is a web application for analyzing and replaying Formula 1 race data. It provides a dashboard for viewing race results, driver and team standings, circuit information, and detailed telemetry for races.
 
-------------------------------------------------------------------------
+## Features
 
-# 📌 Project Overview
+- **Race Replay**: Watch a replay of any race with live telemetry data including driver positions, lap times, tire usage, and more
+- **Driver Standings**: See current World Drivers' Championship standings and detailed stats for each driver
+- **Constructor Standings**: View current World Constructors' Championship standings 
+- **Race Results**: Get full results for every race of the season including finishing positions, fastest laps, and pit stop data
+- **Circuit Information**: Explore details on every track in the F1 calendar with map layouts and corner analysis
+- **Data Analytics**: Dig into the data with visualization tools to compare teammate battles, analyze race pace, and spot trends
 
-The **F1 Race Tracking and Historical Statistics Visualization
-Platform** is designed to provide a centralized environment where users
-can explore Formula 1 races visually.
+## Technical Overview
 
-The system integrates **historical race data and real-time API data**
-and presents them through an **interactive 2D race track replay system**
-along with analytical dashboards.
+The F1 Track application consists of:
 
-Users can:
+- **Backend**: Python Flask server that pulls live race data from the FastF1 API and stores it in a SQLite database
+- **Frontend**: HTML templates with JavaScript to render the UI components and visualizations 
+- **Data Analysis**: Jupyter notebooks to explore the data and build machine learning models
 
--   Replay past races\
--   Track driver positions on a 2D track\
--   Analyze lap times and race strategies\
--   Compare drivers and teams\
--   Explore race statistics interactively
+## Getting Started
 
-------------------------------------------------------------------------
+1. Install the required Python packages: `pip install -r requirements.txt`
+2. Start the Flask server: `python app.py`
+3. Open a web browser and go to `http://localhost:5000` to access the application
 
-# 🎯 Objectives
+## Data Sources
 
-The project aims to:
+- [FastF1](https://theoehrly.github.io/Fast-F1/) - Python package for accessing F1 timing and telemetry data
+- [Ergast API](http://ergast.com/mrd/) - Historical motor racing data for non-commercial use
 
--   Provide a **centralized platform** for accessing historical F1 race
-    statistics.
--   Visualize races using an **interactive 2D race track simulation**.
--   Integrate **real-time and historical data from external APIs**.
--   Allow users to **analyze performance, lap times, overtakes, and pit
-    strategies**.
+## Contributing
 
-------------------------------------------------------------------------
+Contributions are welcome! If you find a bug or have a feature request, please open an issue on the GitHub repository. If you'd like to contribute code changes, you can fork the repository and open a pull request with your changes.
 
-# ✨ Features
+## License
 
-## 🏁 2D Race Track Visualization
-
--   Simulated race replay on a **2D race track**
--   Track driver movements during the race
--   Animated race progression
-
-## 📊 Historical Race Statistics
-
--   Access historical race data
--   View driver performance across seasons
--   Compare drivers and teams
-
-## ⚡ Real-Time Data Integration
-
--   Fetch race data using **external Formula 1 APIs**
--   Display updated race information dynamically
-
-## 🎮 Interactive Race Replay
-
--   Playback controls
--   Timeline navigation
--   Race progression visualization
-
-## 📈 Statistical Analysis Dashboard
-
--   Driver performance metrics
--   Lap times and race results
--   Overtakes and pit strategy insights
-
-------------------------------------------------------------------------
-
-# ⚙️ Technologies Used
-
-### Frontend
-
--   HTML
--   CSS
--   JavaScript
--   Interactive UI animations
-
-### Backend
-
--   API integration
--   Data processing services
-
-### Data Sources
-
--   Formula 1 race APIs
--   Historical race datasets
-
-------------------------------------------------------------------------
-
-# 📅 Project Timeline
-
-  Milestone         Description                             Timeline
-  ----------------- --------------------------------------- -----------------
-  Project Kickoff   Initial project meeting                 Week 1
-  Phase 1           System design & API integration setup   Week 3
-  Phase 2           2D race visualization and dashboard     Week 6
-  Final Delivery    Complete project submission             End of semester
-
-------------------------------------------------------------------------
-
-# 👥 Team Members
-
-  Role                     Member
-  ------------------------ -----------------------
-  Data Preprocessing       Phalgun
-  API Integration          Lakshay
-  Frontend Development     Pranadeep, Pradyun
-  Backend Development      Hemanth, Mahitha
-  Research & Development   Vinuthna, Jay Prakash
-
-------------------------------------------------------------------------
-
-# 🚧 Assumptions & Constraints
-
-### Assumptions
-
--   Reliable access to Formula 1 APIs\
--   Required development tools available\
--   Regular feedback from instructors
-
-### Constraints
-
--   Academic project deadlines\
--   API rate limits\
--   Limited development time and resources
-
-------------------------------------------------------------------------
-
-# 🚀 Future Improvements
-
-Possible future enhancements:
-
--   Full **3D race simulation**
--   Machine learning based **race prediction**
--   Advanced **driver comparison analytics**
--   Real-time **live race tracking**
--   Mobile application support
-
-------------------------------------------------------------------------
-
-# 📄 License
-
-This project is developed for **academic and educational purposes**.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

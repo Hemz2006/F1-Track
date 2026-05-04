@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1Track.com — Circuits</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--red:#E10600;--red2:#FF1801;--darker:#050505;--panel:#0e0e0e;--border:rgba(255,255,255,0.07);--silver:#b0b0b0;--white:#f0f0f0;--green:#22c55e;--amber:#f59e0b;--teal:#00D2BE}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+body{background:var(--darker);color:var(--white);font-family:'Rajdhani',sans-serif;min-height:100vh;cursor:none;overflow-x:hidden}
+.cursor{position:fixed;width:10px;height:10px;background:var(--red);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen}
+.cursor-ring{position:fixed;width:32px;height:32px;border:1px solid rgba(225,6,0,.45);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .15s ease}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px);pointer-events:none;z-index:9000}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:64px;background:rgba(8,8,8,.96);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:16px 0;z-index:500;backdrop-filter:blur(12px)}
+.logo-txt{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;color:var(--red);text-align:center;line-height:1.1;margin-bottom:28px}
+.nav-icon{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.35);position:relative}
+.nav-icon:hover,.nav-icon.active{background:rgba(225,6,0,.12);color:var(--red)}
+.nav-icon.active::before{content:'';position:absolute;left:-1px;top:25%;bottom:25%;width:2px;background:var(--red);border-radius:0 2px 2px 0}
+.nav-icon svg{width:20px;height:20px}
+.sidebar-bottom{margin-top:auto}
+.user-avatar{width:38px;height:38px;border-radius:50%;border:2px solid rgba(225,6,0,.4);display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--red);cursor:pointer;background:rgba(225,6,0,.08)}
+.topbar{position:fixed;top:0;left:64px;right:0;height:56px;background:rgba(8,8,8,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px 0 24px;z-index:400;backdrop-filter:blur(12px)}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,var(--red),transparent 50%)}
+.page-label{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px}
+.page-label span{color:var(--red)}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.clock{font-family:'Share Tech Mono',monospace;font-size:13px;color:rgba(255,255,255,.4);letter-spacing:1px}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:rgba(255,255,255,.3);pointer-events:none}
+.search-input{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;padding:7px 12px 7px 32px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;color:var(--white);outline:none;transition:all .2s;width:200px}
+.search-input:focus{border-color:rgba(225,6,0,.4);background:rgba(225,6,0,.04)}
+.search-input::placeholder{color:rgba(255,255,255,.2)}
+.main{margin-left:64px;padding-top:56px;min-height:100vh}
+.content{padding:28px;display:grid;gap:20px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+/* hero */
+.hero-banner{position:relative;overflow:hidden;background:linear-gradient(135deg,#160000 0%,#0a0000 55%,#060606 100%);border:1px solid var(--border);border-radius:6px;padding:28px 32px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:24px;animation:fadeUp .5s ease both}
+.hero-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red),var(--red2),transparent)}
+.hb-bg{position:absolute;right:-10px;top:-30px;font-family:'Orbitron',sans-serif;font-weight:900;font-size:150px;color:var(--red);opacity:.03;pointer-events:none}
+.hb-eyebrow{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:4px;color:var(--red);margin-bottom:8px}
+.hb-title{font-family:'Orbitron',sans-serif;font-size:26px;font-weight:900;margin-bottom:6px}
+.hb-sub{font-size:14px;color:rgba(255,255,255,.4);font-weight:300;margin-bottom:16px}
+.hb-stats{display:flex;gap:24px}
+.hbs{border-left:2px solid rgba(225,6,0,.4);padding-left:12px}
+.hbs-val{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700}
+.hbs-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-top:2px}
+/* filters */
+.filter-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;animation:fadeUp .55s ease both}
+.pill{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:6px 14px;border:1px solid rgba(255,255,255,.1);border-radius:2px;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;transition:all .2s}
+.pill:hover{border-color:rgba(255,255,255,.3);color:var(--white)}
+.pill.active{border-color:var(--red);color:var(--red);background:rgba(225,6,0,.08)}
+.res-count{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.2);margin-left:auto}
+/* grid */
+.circuits-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;animation:fadeUp .6s ease both}
+/* circuit card */
+.circuit-card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:6px;overflow:hidden;cursor:pointer;transition:all .25s;position:relative}
+.circuit-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red),transparent);opacity:0;transition:opacity .2s}
+.circuit-card:hover::before,.circuit-card.selected::before{opacity:1}
+.circuit-card:hover{border-color:rgba(255,255,255,.13);transform:translateY(-3px);box-shadow:0 14px 36px rgba(0,0,0,.5)}
+.circuit-card.selected{border-color:rgba(225,6,0,.3)}
+/* track SVG area */
+.cc-track{height:160px;background:linear-gradient(135deg,rgba(255,255,255,.01) 0%,rgba(0,0,0,.4) 100%);display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(255,255,255,.04);position:relative;overflow:hidden}
+.cc-track-svg{width:80%;height:80%;max-height:130px}
+.cc-rnd{position:absolute;top:10px;left:12px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.2)}
+.cc-status{position:absolute;top:10px;right:12px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;padding:2px 8px;border-radius:2px}
+.done{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.next{background:rgba(225,6,0,.12);color:var(--red);border:1px solid rgba(225,6,0,.3);animation:gp 2s infinite}
+.future{background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)}
+@keyframes gp{0%,100%{box-shadow:0 0 0 0 rgba(225,6,0,.3)}50%{box-shadow:0 0 8px 2px rgba(225,6,0,.1)}}
+.cc-body{padding:14px 16px}
+.cc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.cc-flag{font-size:22px;line-height:1}
+.cc-date{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.25)}
+.cc-name{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;margin-bottom:3px;line-height:1.2}
+.cc-location{font-size:12px;color:rgba(255,255,255,.35);font-weight:300;margin-bottom:10px}
+.cc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.cc-stat{background:rgba(0,0,0,.3);border-radius:3px;padding:6px 8px}
+.cc-stat-lbl{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:1px;color:rgba(255,255,255,.2);margin-bottom:2px}
+.cc-stat-val{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700}
+/* detail */
+.detail-panel{display:none;background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden;position:relative;animation:fadeUp .4s ease both}
+.detail-panel.open{display:block}
+.detail-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red),var(--red2),transparent)}
+.dp-grid{display:grid;grid-template-columns:280px 1fr 1fr;gap:0}
+.dp-sec{padding:24px;border-right:1px solid var(--border)}
+.dp-sec:last-child{border-right:none}
+.dp-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(255,255,255,.25);margin-bottom:14px}
+.ir{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.ir:last-child{border-bottom:none}
+.ir-l{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:rgba(255,255,255,.25)}
+.ir-v{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600}
+.no-results{grid-column:1/-1;text-align:center;padding:60px;font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:rgba(255,255,255,.15)}
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+<aside class="sidebar">
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="F1Track" style="width:44px;height:44px;object-fit:contain;margin-bottom:24px">
+  <a class="nav-icon" title="Dashboard" href="{{ url_for('dashboard') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <rect x="3" y="3" width="7" height="7" rx="1"/>
+    <rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/>
+    <rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Race Replay" href="{{ url_for('replay') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <polygon points="5 3 19 12 5 21 5 3"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Standings" href="{{ url_for('standings') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Drivers" href="{{ url_for('drivers') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+</a>
+
+<a class="nav-icon active" title="Circuits" href="{{ url_for('circuits') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M12 8v4l3 3"/>
+  </svg>
+</a>
+
+<a class="nav-icon" title="Analytics" href="{{ url_for('analytics') }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+</a>
+  <div class="sidebar-bottom"><div class="nav-icon" style="margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div><div class="user-avatar">LP</div></div>
+</aside>
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:20px"><span class="page-label">CIRCUIT<span>S</span></span><div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:rgba(225,6,0,.8);background:rgba(225,6,0,.1);border:1px solid rgba(225,6,0,.25);border-radius:100px;padding:3px 12px">2026 CALENDAR</div></div>
+  <div class="topbar-right"><div class="search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="search-input" id="searchInput" placeholder="Search circuit…" autocomplete="off"></div><span class="clock" id="clock">--:--:--</span></div>
+</header>
+<main class="main"><div class="content">
+  <div class="hero-banner">
+    <div class="hb-bg">CIRCUITS</div>
+    <div>
+      <div class="hb-eyebrow">2026 FORMULA 1 — CIRCUIT GUIDE</div>
+      <div class="hb-title">ALL 24 CIRCUITS</div>
+      <div class="hb-sub">Every track on the 2026 calendar with layout, statistics & lap records.</div>
+      <div class="hb-stats">
+        <div class="hbs"><div class="hbs-val">24</div><div class="hbs-lbl">CIRCUITS</div></div>
+        <div class="hbs"><div class="hbs-val">7</div><div class="hbs-lbl">COMPLETED</div></div>
+        <div class="hbs"><div class="hbs-val">21</div><div class="hbs-lbl">COUNTRIES</div></div>
+        <div class="hbs"><div class="hbs-val">5</div><div class="hbs-lbl">CONTINENTS</div></div>
+      </div>
+    </div>
+    <div style="font-size:72px;opacity:.6">🗺️</div>
+  </div>
+  <div class="filter-row">
+    <button class="pill active" data-f="all">ALL</button>
+    <button class="pill" data-f="done">COMPLETED</button>
+    <button class="pill" data-f="next">NEXT RACE</button>
+    <button class="pill" data-f="future">UPCOMING</button>
+    <button class="pill" data-f="street">STREET CIRCUITS</button>
+    <button class="pill" data-f="night">NIGHT RACES</button>
+    <div class="res-count" id="resCount">24 CIRCUITS</div>
+  </div>
+  <div class="circuits-grid" id="circuitsGrid"></div>
+  <div class="detail-panel" id="detailPanel"></div>
+</div></main>
+<script>
+const cursor=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px';});
+(function ar(){rx+=(mx-rx)*.14;ry+=(my-ry)*.14;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(ar)})();
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=n.getUTCHours().toString().padStart(2,'0')+':'+n.getUTCMinutes().toString().padStart(2,'0')+':'+n.getUTCSeconds().toString().padStart(2,'0')+' UTC';}
+updateClock();setInterval(updateClock,1000);
+
+// Country → flag emoji
+const COUNTRY_FLAGS={
+  'Australia':'🇦🇺','China':'🇨🇳','Japan':'🇯🇵','Bahrain':'🇧🇭',
+  'Saudi Arabia':'🇸🇦','United States':'🇺🇸','Italy':'🇮🇹',
+  'Monaco':'🇲🇨','Spain':'🇪🇸','Canada':'🇨🇦','Austria':'🇦🇹',
+  'United Kingdom':'🇬🇧','Hungary':'🇭🇺','Belgium':'🇧🇪',
+  'Netherlands':'🇳🇱','Azerbaijan':'🇦🇿','Singapore':'🇸🇬',
+  'Mexico':'🇲🇽','Brazil':'🇧🇷','UAE':'🇦🇪','Qatar':'🇶🇦',
+  'Las Vegas':'🇺🇸','Miami':'🇺🇸','Abu Dhabi':'🇦🇪'
+};
+function countryFlag(country){
+  for(const [k,v] of Object.entries(COUNTRY_FLAGS)){
+    if((country||'').toLowerCase().includes(k.toLowerCase())) return v;
+  }
+  return '🏁';
+}
+
+let allCircuits=[];
+
+async function loadCircuits(year=2026){
+  const grid=document.getElementById('circuitsGrid');
+  if(grid) grid.innerHTML='<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.25)">LOADING CIRCUITS...</div>';
+
+  try{
+    const res=await fetch(`/f1/circuits/${year}`);
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    allCircuits=data.circuits||[];
+
+    const countEl=document.getElementById('circuitCount');
+    if(countEl) countEl.textContent=allCircuits.length+' CIRCUITS';
+
+    renderCircuits(allCircuits);
+  }catch(e){
+    if(grid) grid.innerHTML=`<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--red);font-family:Share Tech Mono,monospace;font-size:10px">⚠ ${e.message}</div>`;
+  }
+}
+
+function renderCircuits(circuits){
+  const grid=document.getElementById('circuitsGrid');
+  if(!grid) return;
+  if(!circuits.length){
+    grid.innerHTML='<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:Share Tech Mono,monospace;font-size:10px;color:rgba(255,255,255,.25)">NO CIRCUITS FOUND</div>';
+    return;
+  }
+  grid.innerHTML=circuits.map((c,i)=>`
+    <div style="background:#0e0e0e;border:1px solid rgba(255,255,255,.06);border-radius:5px;
+                overflow:hidden;position:relative;cursor:pointer;
+                animation:fadeUp .6s ease both;animation-delay:${i*.04}s;transition:all .22s"
+         onmouseenter="this.style.transform='translateY(-3px)';this.style.borderColor='rgba(225,6,0,.3)'"
+         onmouseleave="this.style.transform='';this.style.borderColor='rgba(255,255,255,.06)'">
+      <div style="height:2px;background:linear-gradient(to right,#E10600,transparent)"></div>
+      <div style="padding:16px 16px 14px">
+        <!-- Header -->
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-family:Share Tech Mono,monospace;font-size:8px;letter-spacing:2px;
+                        color:rgba(255,255,255,.25);margin-bottom:4px">${(c.country||'').toUpperCase()}</div>
+            <div style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:700;
+                        letter-spacing:0.5px;line-height:1.35;color:#f0f0f0">${c.name||''}</div>
+          </div>
+          <div style="font-size:26px;flex-shrink:0;margin-left:8px">${countryFlag(c.country)}</div>
+        </div>
+        <!-- Location -->
+        <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">${c.locality||''}</div>
+        <!-- Coordinates -->
+        ${(c.latitude&&c.longitude)?`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);
+                      border-radius:3px;padding:6px 8px">
+            <div style="font-family:Share Tech Mono,monospace;font-size:7px;letter-spacing:1px;
+                        color:rgba(255,255,255,.2);margin-bottom:2px">LAT</div>
+            <div style="font-family:Share Tech Mono,monospace;font-size:10px">${parseFloat(c.latitude).toFixed(4)}</div>
+          </div>
+          <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);
+                      border-radius:3px;padding:6px 8px">
+            <div style="font-family:Share Tech Mono,monospace;font-size:7px;letter-spacing:1px;
+                        color:rgba(255,255,255,.2);margin-bottom:2px">LNG</div>
+            <div style="font-family:Share Tech Mono,monospace;font-size:10px">${parseFloat(c.longitude).toFixed(4)}</div>
+          </div>
+        </div>`:
+        '<div style="font-family:Share Tech Mono,monospace;font-size:8px;color:rgba(255,255,255,.2);margin-bottom:10px">COORDINATES UNAVAILABLE</div>'}
+        <!-- Wiki link -->
+        <a href="${c.url||'#'}" target="_blank" rel="noopener"
+           style="font-family:Share Tech Mono,monospace;font-size:8px;letter-spacing:2px;
+                  color:#E10600;text-decoration:none;opacity:.8"
+           onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=.8">
+          VIEW WIKIPEDIA →
+        </a>
+      </div>
+    </div>`).join('');
+}
+
+// Search
+document.getElementById('circuitSearch')?.addEventListener('input',e=>{
+  applyFilters();
+});
+
+// ── Filter pills (ALL / COMPLETED / NEXT / UPCOMING / STREET / NIGHT) ──────
+let activeFilter = 'all';
+
+// Known street circuits + night races (locality strings as returned by the API)
+const STREET_CIRCUITS = new Set([
+  'Monaco','Marina Bay','Singapore','Baku','Las Vegas','Jeddah','Miami',
+  'Melbourne','Montréal','Montreal','Madrid'
+]);
+const NIGHT_RACES = new Set([
+  'Sakhir','Jeddah','Marina Bay','Singapore','Las Vegas','Lusail','Yas Island','Abu Dhabi'
+]);
+
+// Map round-status from /f1/schedule onto each circuit (matched by locality)
+let scheduleByLocality = {};   // 'Monaco' -> {status, round}
+async function fetchScheduleStatus(year){
+  try {
+    const r = await fetch(`/f1/schedule/${year}`);
+    const d = await r.json();
+    if(d.error) return;
+    (d.races||[]).forEach(rc=>{
+      const key = (rc.location||'').toLowerCase();
+      if(key) scheduleByLocality[key] = rc;
+    });
+  } catch(e){ console.warn('schedule status fetch failed', e); }
+}
+
+function applyFilters(){
+  const q = (document.getElementById('circuitSearch')?.value || '').toLowerCase().trim();
+  let filtered = allCircuits;
+
+  // Text search
+  if(q){
+    filtered = filtered.filter(c =>
+      (c.name||'').toLowerCase().includes(q) ||
+      (c.country||'').toLowerCase().includes(q) ||
+      (c.locality||'').toLowerCase().includes(q)
+    );
+  }
+
+  // Pill filter
+  if(activeFilter === 'street'){
+    filtered = filtered.filter(c => STREET_CIRCUITS.has(c.locality));
+  } else if(activeFilter === 'night'){
+    filtered = filtered.filter(c => NIGHT_RACES.has(c.locality));
+  } else if(activeFilter === 'done' || activeFilter === 'next' || activeFilter === 'future'){
+    filtered = filtered.filter(c => {
+      const sched = scheduleByLocality[(c.locality||'').toLowerCase()];
+      return sched && sched.status === activeFilter;
+    });
+  }
+
+  renderCircuits(filtered);
+  const countEl = document.getElementById('circuitCount');
+  if(countEl) countEl.textContent = filtered.length + ' CIRCUITS';
+}
+
+document.querySelectorAll('.pill[data-f]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pill[data-f]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.f;
+    applyFilters();
+  });
+});
+
+// Init: load circuits AND schedule status in parallel
+(async () => {
+  await Promise.all([loadCircuits(2026), fetchScheduleStatus(2026)]);
+  applyFilters();
+})();
+</script>
+<!-- ═══ AUTH UI: settings removal + profile dropdown · auto-injected ═══ -->
+<script>
+(function(){
+  function init(){
+    // 1. Remove any settings (gear) icon — match by SVG content path
+    document.querySelectorAll('.sidebar-bottom .nav-icon, aside .nav-icon[title="Settings"], aside a.nav-icon[title="Settings"]').forEach(el=>{
+      const svg = el.querySelector('svg');
+      if(!svg) return;
+      const isGear = /circle cx="12" cy="12" r="3"/.test(svg.outerHTML) &&
+                     /M19\.4 15/.test(svg.outerHTML);
+      if(isGear) el.remove();
+    });
+
+    // 2. User-avatar → clickable, with dropdown
+    const av = document.querySelector('.user-avatar');
+    if(!av) return;
+
+    // If avatar is an <a>, swap to <div> so we control click
+    if(av.tagName === 'A'){
+      const div = document.createElement('div');
+      div.className = av.className;
+      div.style.cssText = av.getAttribute('style') || '';
+      div.textContent = av.textContent;
+      av.parentNode.replaceChild(div, av);
+    }
+
+    const avatar = document.querySelector('.user-avatar');
+    avatar.id = avatar.id || 'userAvatar';
+    avatar.style.cursor = 'pointer';
+
+    // Set initials from current user
+    try {
+      const u = JSON.parse(localStorage.getItem('f1_currentUser')||'null');
+      if(u){
+        const a=(u.firstName||'?').charAt(0), b=(u.lastName||'?').charAt(0);
+        avatar.textContent = (a+b).toUpperCase();
+      }
+    } catch(e){}
+
+    // Make sure parent is positioned for absolute dropdown
+    const parent = avatar.closest('.sidebar-bottom') || avatar.parentElement;
+    if(parent && getComputedStyle(parent).position === 'static'){
+      parent.style.position = 'relative';
+    }
+
+    // Build dropdown
+    const menu = document.createElement('div');
+    menu.id = 'profileMenu';
+    menu.style.cssText = 'display:none;position:absolute;left:54px;bottom:0;background:#0e0e0e;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:6px;min-width:180px;z-index:1000;box-shadow:0 12px 32px rgba(0,0,0,.6)';
+    menu.innerHTML = `
+      <div id="profileMenuName" style="padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <button id="logoutBtn" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:transparent;border:none;color:#E10600;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1.5px;cursor:pointer;border-radius:4px;text-align:left">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        LOGOUT
+      </button>`;
+    parent.appendChild(menu);
+
+    avatar.addEventListener('click', e=>{
+      e.stopPropagation();
+      const open = menu.style.display !== 'none';
+      menu.style.display = open ? 'none' : 'block';
+      if(!open){
+        try {
+          const u = JSON.parse(localStorage.getItem('f1_currentUser')||'null');
+          document.getElementById('profileMenuName').textContent =
+            u ? `${u.firstName||''} ${u.lastName||''} · @${u.username||''}` : 'NOT SIGNED IN';
+        } catch(e){
+          document.getElementById('profileMenuName').textContent = 'NOT SIGNED IN';
+        }
+      }
+    });
+    document.getElementById('logoutBtn').addEventListener('click', ()=>{
+      localStorage.removeItem('f1_currentUser');
+      window.location.href = '/';
+    });
+    document.addEventListener('click', e=>{
+      if(menu.style.display==='none') return;
+      if(!menu.contains(e.target) && e.target !== avatar) menu.style.display='none';
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+
+</body>
+</html>

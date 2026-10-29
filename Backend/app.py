@@ -17,13 +17,17 @@ import os
 # ─── Import the FastF1 blueprint we created ────────────────────────────────
 from f1_api_routes import f1_bp   # <── ADD THIS LINE
 
-app = Flask(__name__, template_folder="templates")
+# Static files live in public/static so Vercel serves them from its CDN at /static/...
+app = Flask(__name__, template_folder="templates", static_folder="public/static")
 CORS(app)
 
 # ─── Register the FastF1 blueprint ─────────────────────────────────────────
 app.register_blueprint(f1_bp)     # <── ADD THIS LINE
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+# Vercel's filesystem is read-only except /tmp (data there is not persistent)
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    'sqlite:////tmp/database.db' if os.environ.get('VERCEL') else 'sqlite:///database.db'
+)
 db = SQLAlchemy(app)
 
 # ===================== MODEL =====================
@@ -121,8 +125,9 @@ def login():
 
     return jsonify({"message": "Invalid credentials"}), 401
 
+with app.app_context():
+    db.create_all()
+
 # ===================== RUN =====================
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, threaded=True)

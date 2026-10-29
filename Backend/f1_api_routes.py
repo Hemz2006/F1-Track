@@ -48,7 +48,9 @@ import pandas as pd
 from flask import Blueprint, jsonify, request
 
 # ─── FastF1 cache ─────────────────────────────────────────────────────────────
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "f1cache")
+# Vercel's filesystem is read-only except /tmp
+CACHE_DIR = ("/tmp/f1cache" if os.environ.get("VERCEL")
+             else os.path.join(os.path.dirname(__file__), "f1cache"))
 os.makedirs(CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(CACHE_DIR)
 logging.getLogger("fastf1").setLevel(logging.WARNING)

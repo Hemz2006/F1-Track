@@ -24,10 +24,15 @@ CORS(app)
 # ─── Register the FastF1 blueprint ─────────────────────────────────────────
 app.register_blueprint(f1_bp)     # <── ADD THIS LINE
 
-# Vercel's filesystem is read-only except /tmp (data there is not persistent)
-app.config['SQLALCHEMY_DATABASE_URI'] = (
+# Use Postgres when DATABASE_URL is set (Vercel + Neon), else SQLite
+# (in /tmp on Vercel, whose filesystem is otherwise read-only; not persistent there)
+db_url = os.environ.get('DATABASE_URL') or (
     'sqlite:////tmp/database.db' if os.environ.get('VERCEL') else 'sqlite:///database.db'
 )
+if db_url.startswith(('postgres://', 'postgresql://')):
+    db_url = 'postgresql+psycopg://' + db_url.split('://', 1)[1]
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 db = SQLAlchemy(app)
 
 # ===================== MODEL =====================

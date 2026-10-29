@@ -5,3 +5,4 @@ fastf1
 requests
 numpy
 pandas
+psycopg[binary]

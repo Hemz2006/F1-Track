@@ -294,7 +294,7 @@ async function loadAll(){
   state.session=null; state.miniSectors=null; state.telemetry={};
   state.sectors=null; state.stints=null; state.speed=null;
   state.visibility.clear();
-  banner(`Loading session ${y}/R${r} … FastF1 may take 10-60s on first load`, 'warn');
+  banner(`Loading session ${y}/R${r} … race data may take 10-60s on first load`, 'warn');
   vizLoading('LOADING SESSION');
   $('#raceName').textContent = `LOADING ${y} R${r}…`;
   $('#driverGrid').innerHTML = '<div style="grid-column:1/-1;font-family:Share Tech Mono,monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.25);padding:14px 4px;text-align:center">LOADING DRIVERS…</div>';
@@ -317,7 +317,7 @@ async function loadAll(){
       <strong>LOAD FAILED</strong>
       <div style="margin-bottom:8px;text-transform:none;letter-spacing:.5px">${e.message}</div>
       <div style="color:rgba(255,255,255,.35);margin-bottom:14px;text-transform:none;letter-spacing:.5px;max-width:420px;line-height:1.5">
-        FastF1 doesn't have telemetry for this round yet (race in progress / data not published / future race).
+        OpenF1 doesn't have data for this round yet (race in progress / data not published / future race).
         Try a different round or year.
       </div>
       <button onclick="loadAll()" style="background:rgba(225,6,0,.12);border:1px solid rgba(225,6,0,.4);color:var(--red);padding:8px 16px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;cursor:pointer">RETRY</button>
@@ -430,7 +430,7 @@ async function renderTelemetry(){
     } catch {}
   }));
   const traces = visible.map(d=>({driver:d, tel:state.telemetry[d.code]})).filter(t=>t.tel);
-  if (!traces.length){ vizEmpty('NO TELEMETRY','FastF1 returned no data for these drivers'); return; }
+  if (!traces.length){ vizEmpty('NO TELEMETRY','OpenF1 returned no data for these drivers'); return; }
   const W=1000, H=220, padL=50, padR=14, padT=22, padB=22;
   const innerW=W-padL-padR, innerH=H-padT-padB;
   const dMax = Math.max(...traces.map(t=>Math.max(...t.tel.distance)));

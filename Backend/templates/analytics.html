@@ -608,7 +608,7 @@ async function loadPerformance(round){
     renderPerformanceLeaderboard('perfBestLap', sec.drivers, 'best_lap', 's', false);
     renderPerformanceLeaderboard('perfSpeed', spd.drivers, 'top_speed_kph', ' km/h', true);
   } catch(e){
-    const msg = e.name==='AbortError' ? 'TIMED OUT — FastF1 slow, try again' : e.message;
+    const msg = e.name==='AbortError' ? 'TIMED OUT — race data slow, try again' : e.message;
     if(status) status.textContent = '';
     ['perfS1','perfS2','perfS3','perfSpeed','perfBestLap'].forEach(id=>{
       const el = document.getElementById(id);
@@ -668,7 +668,7 @@ async function loadStrategy(round){
     renderCompoundUsage(d.stints || {});
     renderPitStops(d.stints || {});
   } catch(e){
-    const msg = e.name==='AbortError' ? 'TIMED OUT — FastF1 slow, try again' : e.message;
+    const msg = e.name==='AbortError' ? 'TIMED OUT — race data slow, try again' : e.message;
     if(status) status.textContent = '';
     ['stratGantt','stratCompound','stratPits'].forEach(id => {
       const el = document.getElementById(id);

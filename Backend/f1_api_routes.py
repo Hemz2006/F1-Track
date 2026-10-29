@@ -2,9 +2,9 @@
 f1_api_routes.py  –  F1 Track Flask App
 =========================================
 Data sources:
-  • FastF1                — telemetry, laps, results (primary)
+  • FastF1                — schedule and results (primary)
   • Jolpica (Ergast clone)— silent fallback for schedule/circuits if FastF1 fails
-  • OpenF1 (api.openf1.org)— LIVE data during active sessions
+  • OpenF1 (api.openf1.org)— laps, stints and telemetry for replays, plus LIVE data
 
 Endpoints:
   Core:
@@ -16,7 +16,7 @@ Endpoints:
     GET /f1/lap-times/<year>/<round>/<driver_code>
     GET /f1/circuits/<year>
 
-  Replay (FastF1):
+  Replay + lap times (OpenF1):
     GET /f1/replay/session-info/<year>/<round>
     GET /f1/replay/track-map/<year>/<round>
     GET /f1/replay/mini-sectors/<year>/<round>?n=25
@@ -115,15 +115,19 @@ def _jolpica(path, timeout=10):
         return None
 
 
-def _openf1(endpoint, params=None, timeout=8):
-    try:
-        r = requests.get(f"{OPENF1}/{endpoint}", params=params or {},
-                         headers=HEADERS, timeout=timeout)
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        print(f"[OpenF1] {endpoint} → {e}")
-        return None
+def _openf1(endpoint, params=None, timeout=8, retries=3):
+    for attempt in range(retries + 1):
+        try:
+            r = requests.get(f"{OPENF1}/{endpoint}", params=params or {},
+                             headers=HEADERS, timeout=timeout)
+            if r.status_code == 429 and attempt < retries:   # rate limited: back off
+                time.sleep(float(r.headers.get("Retry-After") or 2 ** attempt))
+                continue
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            print(f"[OpenF1] {endpoint} → {e}")
+            return None
 
 
 _cache_lock = threading.Lock()
@@ -355,41 +359,41 @@ def get_constructor_standings(year):
     return jsonify({"year": year, "round": s["round"], "constructor_standings": s["constructors"]})
 
 
-# ── Lap Times (FastF1) ───────────────────────────────────────────────────────
+# ── Lap Times (OpenF1) ───────────────────────────────────────────────────────
 @f1_bp.route("/lap-times/<int:year>/<int:round_num>/<driver_code>")
 def get_lap_times(year, round_num, driver_code):
+    code = driver_code.upper()
     try:
-        session = fastf1.get_session(year, round_num, "R")
-        session.load(telemetry=False, weather=False, messages=False)
+        race = _race_data(year, round_num)
+        num = _driver_number(race, code)
     except Exception as e:
-        return _err(f"Lap times {driver_code} {year}/{round_num}: {e}")
+        return _err(f"Lap times {code} {year}/{round_num}: {e}")
 
-    try:
-        driver_laps = session.laps.pick_drivers(driver_code.upper())
-    except Exception as e:
-        return _err(f"No laps for driver {driver_code}: {e}")
-
-    laps = []
-    for _, lap in driver_laps.iterlaps():
-        lap_time = lap["LapTime"]
-        if pd.isna(lap_time): continue
-        try:    lap_secs = lap_time.total_seconds()
-        except: continue
-        if lap_secs < 60 or lap_secs > 300: continue
+    pit_laps = {p["lap_number"] for p in race["pits"] if p["driver_number"] == num}
+    laps, best = [], None
+    for lap in sorted(_driver_laps(race, num), key=lambda l: l["lap_number"]):
+        secs = lap["lap_duration"]
+        if secs < 60 or secs > 300: continue
+        stint = _stint_for_lap(race, num, lap["lap_number"])
+        is_pb = best is None or secs < best
+        if is_pb: best = secs
+        tyre_life = None
+        if stint.get("tyre_age_at_start") is not None:
+            tyre_life = stint["tyre_age_at_start"] + lap["lap_number"] - stint["lap_start"] + 1
         laps.append({
-            "lap_number":       _to_int(lap.get("LapNumber")),
-            "lap_time_sec":     round(lap_secs, 3),
-            "compound":         _to_str(lap.get("Compound"), "UNKNOWN") or "UNKNOWN",
-            "tyre_life":        _to_int(lap.get("TyreLife")),
-            "pit_in":           not pd.isna(lap.get("PitInTime")),
-            "pit_out":          not pd.isna(lap.get("PitOutTime")),
-            "is_personal_best": bool(lap.get("IsPersonalBest", False)) if not pd.isna(lap.get("IsPersonalBest")) else False,
+            "lap_number":       lap["lap_number"],
+            "lap_time_sec":     round(secs, 3),
+            "compound":         _to_str(stint.get("compound"), "UNKNOWN") or "UNKNOWN",
+            "tyre_life":        tyre_life,
+            "pit_in":           lap["lap_number"] in pit_laps,
+            "pit_out":          bool(lap.get("is_pit_out_lap")),
+            "is_personal_best": is_pb,
         })
 
     return jsonify({
         "year": year, "round": round_num,
-        "race_name": _to_str(session.event.get("EventName")),
-        "driver":    driver_code.upper(),
+        "race_name": race["event"]["race_name"],
+        "driver":    code,
         "laps":      laps, "total_laps": len(laps),
     })
 
@@ -466,12 +470,113 @@ def get_circuits(year):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#   REPLAY ENDPOINTS  (FastF1 telemetry — historical race replay)
+#   REPLAY ENDPOINTS  (OpenF1 — historical race replay)
 # ════════════════════════════════════════════════════════════════════════════
-def _load_race_session(year, round_num, want_laps=True, want_telemetry=False):
-    session = fastf1.get_session(year, round_num, "R")
-    session.load(laps=want_laps, telemetry=want_telemetry, weather=False, messages=False)
-    return session
+# F1's live-timing archive, where FastF1 gets laps and telemetry, now requires a
+# paid F1 TV login, so race laps, stints and car telemetry come from OpenF1.
+
+def _openf1_rows(endpoint, **params):
+    rows = _openf1(endpoint, params, timeout=30)
+    if rows is None:
+        raise RuntimeError(f"OpenF1 {endpoint} unavailable")
+    return rows
+
+
+def _race_data(year, round_num):
+    """OpenF1 race session (matched to the schedule's race day) with its laps,
+    stints, pit stops, results and drivers."""
+    def compute():
+        schedule = fastf1.get_event_schedule(year, include_testing=False)
+        ev = schedule[schedule["RoundNumber"] == round_num]
+        if ev.empty: raise RuntimeError(f"No round {round_num} in {year}")
+        ev = ev.iloc[0]
+        race_day = pd.Timestamp(ev["EventDate"]).date()
+
+        sessions = _openf1_rows("sessions", year=year, session_name="Race")
+        def days_off(s): return abs((datetime.date.fromisoformat(s["date_start"][:10]) - race_day).days)
+        sess = min(sessions, key=days_off, default=None)
+        if sess is None or days_off(sess) > 1:
+            raise RuntimeError(f"OpenF1 has no race session for {year} round {round_num}")
+        sk = sess["session_key"]
+
+        return {
+            "session_key": sk,
+            "event": {"race_name": _to_str(ev.get("EventName")),
+                      "circuit":   _to_str(ev.get("Location")),
+                      "country":   _to_str(ev.get("Country")),
+                      "date":      race_day.isoformat()},
+            "drivers": {d["driver_number"]: d for d in _openf1_rows("drivers", session_key=sk)},
+            "results": sorted(_openf1_rows("session_result", session_key=sk),
+                              key=lambda r: r.get("position") or 99),
+            "laps":    [l for l in _openf1_rows("laps", session_key=sk) if l.get("lap_duration")],
+            "stints":  _openf1_rows("stints", session_key=sk),
+            "pits":    _openf1_rows("pit", session_key=sk),
+        }
+    return _cached(("of1-race", year, round_num), REPLAY_TTL_SEC, compute)
+
+
+def _race_driver_numbers(race):
+    """Driver numbers in finishing order, then anyone without a result."""
+    nums = [r["driver_number"] for r in race["results"]]
+    return nums + [n for n in race["drivers"] if n not in nums]
+
+
+def _code(race, num):
+    return _to_str(race["drivers"].get(num, {}).get("name_acronym")) or str(num)
+
+
+def _team(race, num):
+    return _to_str(race["drivers"].get(num, {}).get("team_name"))
+
+
+def _driver_number(race, code):
+    for num, d in race["drivers"].items():
+        if _to_str(d.get("name_acronym")).upper() == code.upper():
+            return num
+    raise RuntimeError(f"No driver {code} in this race")
+
+
+def _driver_laps(race, num):
+    return [l for l in race["laps"] if l["driver_number"] == num]
+
+
+def _fastest_lap(laps):
+    clean = [l for l in laps if not l.get("is_pit_out_lap")]
+    return min(clean or laps, key=lambda l: l["lap_duration"], default=None)
+
+
+def _stint_for_lap(race, num, lap_number):
+    for s in race["stints"]:
+        if (s["driver_number"] == num and s.get("lap_start") is not None
+                and s["lap_start"] <= lap_number <= (s.get("lap_end") or lap_number)):
+            return s
+    return {}
+
+
+def _lap_telemetry(race, lap, with_position=True):
+    """Car data for one lap as a DataFrame with time (s) and integrated distance (m),
+    plus x/y track position when with_position is set."""
+    start = pd.Timestamp(lap["date_start"])
+    end = start + pd.Timedelta(seconds=lap["lap_duration"])
+    # requests sends {"date>": v} as "date>=v", which OpenF1 reads as date >= v
+    window = {"session_key": race["session_key"], "driver_number": lap["driver_number"],
+              "date>": start.isoformat(), "date<": end.isoformat()}
+
+    car = pd.DataFrame(_openf1_rows("car_data", **window))
+    if car.empty: raise RuntimeError("No car data for lap")
+    car["date"] = pd.to_datetime(car["date"], format="ISO8601")
+    car = car.sort_values("date").reset_index(drop=True)
+    t = (car["date"] - start).dt.total_seconds()
+    car["time"] = t
+    car["distance"] = np.cumsum(car["speed"] / 3.6 * t.diff().fillna(t.iloc[0]).clip(lower=0))
+
+    if with_position:
+        loc = pd.DataFrame(_openf1_rows("location", **window))
+        if loc.empty: raise RuntimeError("No position data for lap")
+        loc["date"] = pd.to_datetime(loc["date"], format="ISO8601")
+        car = pd.merge_asof(car, loc.sort_values("date")[["date", "x", "y"]],
+                            on="date", direction="nearest")
+    return car
 
 
 @f1_bp.route("/replay/session-info/<int:year>/<int:round_num>")
@@ -479,44 +584,28 @@ def replay_session_info(year, round_num):
     """Drivers list with team color + line-style hint, plus session metadata."""
     cache_key = ("replay-info", year, round_num)
     def compute():
-        sess = _load_race_session(year, round_num, want_laps=True, want_telemetry=False)
-        results = sess.results
+        race = _race_data(year, round_num)
+        positions = {r["driver_number"]: r.get("position") for r in race["results"]}
         team_seen = {}
         drivers = []
-        for _, d in results.iterrows():
-            code = _to_str(d.get("Abbreviation"))
-            if not code: continue
-            team = _to_str(d.get("TeamName"))
-            tcolor = _normalize_team_color(d.get("TeamColor"))
+        for num in _race_driver_numbers(race):
+            d = race["drivers"].get(num)
+            if not d: continue
+            team = _team(race, num)
             seen_count = team_seen.get(team, 0)
-            line_style = "solid" if seen_count == 0 else "dashed"
             team_seen[team] = seen_count + 1
             drivers.append({
-                "code":       code,
-                "number":     _to_int(d.get("DriverNumber")),
-                "full_name":  _to_str(d.get("FullName")),
+                "code":       _code(race, num),
+                "number":     num,
+                "full_name":  _to_str(d.get("full_name")),
                 "team":       team,
-                "team_color": tcolor,
-                "line_style": line_style,
-                "position":   _to_int(d.get("Position")),
+                "team_color": _normalize_team_color(d.get("team_colour")),
+                "line_style": "solid" if seen_count == 0 else "dashed",
+                "position":   positions.get(num),
             })
-
-        total_laps = 0
-        try:
-            total_laps = int(sess.laps["LapNumber"].max()) if not sess.laps.empty else 0
-        except Exception:
-            pass
-
-        try:    race_date = str(pd.Timestamp(sess.event["EventDate"]).date())
-        except: race_date = ""
-
         return {
-            "year": year, "round": round_num,
-            "race_name": _to_str(sess.event.get("EventName")),
-            "circuit":   _to_str(sess.event.get("Location")),
-            "country":   _to_str(sess.event.get("Country")),
-            "date":      race_date,
-            "total_laps": total_laps,
+            "year": year, "round": round_num, **race["event"],
+            "total_laps": max((l["lap_number"] for l in race["laps"]), default=0),
             "drivers":   drivers,
         }
 
@@ -528,25 +617,20 @@ def replay_session_info(year, round_num):
 def replay_track_map(year, round_num):
     cache_key = ("track-map", year, round_num)
     def compute():
-        sess = fastf1.get_session(year, round_num, "R")
-        sess.load(laps=True, telemetry=True, weather=False, messages=False)
-        fastest = sess.laps.pick_fastest()
-        if fastest is None or (hasattr(fastest, "empty") and fastest.empty):
-            raise RuntimeError("No fastest lap available")
-        tel = fastest.get_telemetry()
-        if tel is None or tel.empty:
-            raise RuntimeError("No telemetry on fastest lap")
+        race = _race_data(year, round_num)
+        fastest = _fastest_lap(race["laps"])
+        if fastest is None: raise RuntimeError("No fastest lap available")
+        tel = _lap_telemetry(race, fastest)
         N = len(tel); step = max(1, N // 400)
-        sub = tel.iloc[::step].copy()
-        xs = sub["X"].astype(float).tolist()
-        ys = sub["Y"].astype(float).tolist()
-        dists = sub["Distance"].astype(float).tolist()
+        sub = tel.iloc[::step]
+        xs = sub["x"].astype(float).tolist()
+        ys = sub["y"].astype(float).tolist()
         return {
             "year": year, "round": round_num,
-            "x": xs, "y": ys, "distance": dists,
+            "x": xs, "y": ys, "distance": sub["distance"].astype(float).tolist(),
             "bounds": {"x_min": float(min(xs)), "x_max": float(max(xs)),
                        "y_min": float(min(ys)), "y_max": float(max(ys))},
-            "track_length": float(tel["Distance"].max()),
+            "track_length": float(tel["distance"].max()),
             "num_points": len(xs),
         }
     try:    return jsonify(_cached(cache_key, REPLAY_TTL_SEC, compute))
@@ -560,42 +644,28 @@ def replay_mini_sectors(year, round_num):
     cache_key = ("mini-sectors", year, round_num, n)
 
     def compute():
-        sess = fastf1.get_session(year, round_num, "R")
-        sess.load(laps=True, telemetry=True, weather=False, messages=False)
-
-        ref_lap = sess.laps.pick_fastest()
-        ref_tel = ref_lap.get_telemetry()
-        track_length = float(ref_tel["Distance"].max())
+        race = _race_data(year, round_num)
+        fastest = _fastest_lap(race["laps"])
+        if fastest is None: raise RuntimeError("No fastest lap available")
+        ref_tel = _lap_telemetry(race, fastest)
+        track_length = float(ref_tel["distance"].max())
         boundaries = np.linspace(0, track_length, n + 1)
 
         N = len(ref_tel); step = max(1, N // 400)
         sub = ref_tel.iloc[::step]
-        track_x = sub["X"].astype(float).tolist()
-        track_y = sub["Y"].astype(float).tolist()
-        track_d = sub["Distance"].astype(float).tolist()
 
-        codes = [c for c in sess.laps["Driver"].dropna().unique().tolist() if c]
         sector_times_per_driver = {}
-        for code in codes:
+        for num in _race_driver_numbers(race):
+            code = _code(race, num)
             try:
-                lap = sess.laps.pick_drivers(code).pick_fastest()
-                if lap is None or (hasattr(lap, "empty") and lap.empty): continue
-                tel = lap.get_telemetry()
-                if tel is None or tel.empty: continue
-                t = pd.to_timedelta(tel["SessionTime"])
-                t_secs = (t - t.iloc[0]).dt.total_seconds().to_numpy()
-                d = tel["Distance"].astype(float).to_numpy()
-
-                sector_times = []
-                for i in range(n):
-                    a, b = boundaries[i], boundaries[i+1]
-                    mask = (d >= a) & (d <= b)
-                    if mask.sum() < 2:
-                        sector_times.append(None); continue
-                    seg_t = t_secs[mask]
-                    duration = float(seg_t.max() - seg_t.min())
-                    sector_times.append(round(duration, 4) if duration > 0 else None)
-                sector_times_per_driver[code] = sector_times
+                lap = _fastest_lap(_driver_laps(race, num))
+                if lap is None: continue
+                tel = _lap_telemetry(race, lap, with_position=False)
+                # scale integrated distance onto the reference lap so boundaries line up
+                d = tel["distance"].to_numpy() * track_length / tel["distance"].max()
+                t_at = np.interp(boundaries, d, tel["time"].to_numpy())
+                sector_times_per_driver[code] = [
+                    round(float(dt), 4) if dt > 0 else None for dt in np.diff(t_at)]
             except Exception as e:
                 print(f"[mini-sectors] skip {code}: {e}")
 
@@ -603,7 +673,9 @@ def replay_mini_sectors(year, round_num):
             "year": year, "round": round_num,
             "num_sectors": n, "track_length": track_length,
             "boundaries": [float(b) for b in boundaries],
-            "track": {"x": track_x, "y": track_y, "distance": track_d},
+            "track": {"x": sub["x"].astype(float).tolist(),
+                      "y": sub["y"].astype(float).tolist(),
+                      "distance": sub["distance"].astype(float).tolist()},
             "drivers": sector_times_per_driver,
         }
 
@@ -615,29 +687,28 @@ def replay_mini_sectors(year, round_num):
 def replay_telemetry(year, round_num, driver_code):
     cache_key = ("telemetry", year, round_num, driver_code.upper())
     def compute():
-        sess = fastf1.get_session(year, round_num, "R")
-        sess.load(laps=True, telemetry=True, weather=False, messages=False)
-        lap = sess.laps.pick_drivers(driver_code.upper()).pick_fastest()
-        if lap is None or (hasattr(lap, "empty") and lap.empty):
-            raise RuntimeError(f"No fastest lap for {driver_code}")
-        tel = lap.get_telemetry()
+        race = _race_data(year, round_num)
+        num = _driver_number(race, driver_code)
+        lap = _fastest_lap(_driver_laps(race, num))
+        if lap is None: raise RuntimeError(f"No fastest lap for {driver_code}")
+        tel = _lap_telemetry(race, lap)
         N = len(tel); step = max(1, N // 500)
-        sub = tel.iloc[::step].copy()
+        sub = tel.iloc[::step]
         return {
             "year": year, "round": round_num,
             "driver": driver_code.upper(),
-            "lap_number": _to_int(lap.get("LapNumber")),
-            "lap_time_sec": float(lap["LapTime"].total_seconds()) if not pd.isna(lap.get("LapTime")) else None,
-            "compound": _to_str(lap.get("Compound"), ""),
-            "distance":  sub["Distance"].astype(float).tolist(),
-            "speed":     sub["Speed"].astype(float).tolist(),
-            "throttle":  sub["Throttle"].astype(float).tolist(),
-            "brake":     [bool(b) for b in sub["Brake"].tolist()],
-            "rpm":       sub["RPM"].astype(float).tolist() if "RPM" in sub.columns else [],
-            "gear":      sub["nGear"].astype(int).tolist() if "nGear" in sub.columns else [],
-            "drs":       sub["DRS"].astype(int).tolist() if "DRS" in sub.columns else [],
-            "x":         sub["X"].astype(float).tolist(),
-            "y":         sub["Y"].astype(float).tolist(),
+            "lap_number": lap["lap_number"],
+            "lap_time_sec": float(lap["lap_duration"]),
+            "compound": _to_str(_stint_for_lap(race, num, lap["lap_number"]).get("compound"), ""),
+            "distance":  sub["distance"].astype(float).tolist(),
+            "speed":     sub["speed"].astype(float).tolist(),
+            "throttle":  sub["throttle"].astype(float).tolist(),
+            "brake":     [bool(b) for b in sub["brake"].tolist()],
+            "rpm":       sub["rpm"].astype(float).tolist(),
+            "gear":      sub["n_gear"].astype(int).tolist(),
+            "drs":       sub["drs"].astype(int).tolist(),
+            "x":         sub["x"].astype(float).tolist(),
+            "y":         sub["y"].astype(float).tolist(),
         }
     try:    return jsonify(_cached(cache_key, REPLAY_TTL_SEC, compute))
     except Exception as e: return _err(f"Telemetry {driver_code} {year}/{round_num}: {e}")
@@ -647,24 +718,16 @@ def replay_telemetry(year, round_num, driver_code):
 def replay_sector_times(year, round_num):
     cache_key = ("sector-times", year, round_num)
     def compute():
-        sess = _load_race_session(year, round_num, want_laps=True, want_telemetry=False)
-        laps = sess.laps
+        race = _race_data(year, round_num)
         out = []
-        codes = [c for c in laps["Driver"].dropna().unique().tolist() if c]
-        for code in codes:
-            dl = laps.pick_drivers(code)
-            if dl.empty: continue
-            row = dl.iloc[0]
-            entry = {"driver": code, "team": _to_str(row.get("Team")),
-                     "best_s1": None, "best_s2": None, "best_s3": None, "best_lap": None}
-            for col, key in [("Sector1Time","best_s1"),("Sector2Time","best_s2"),
-                             ("Sector3Time","best_s3"),("LapTime","best_lap")]:
-                if col not in dl.columns: continue
-                vals = dl[col].dropna()
-                if vals.empty: continue
-                t = vals.min()
-                try:    entry[key] = round(t.total_seconds(), 3)
-                except: pass
+        for num in _race_driver_numbers(race):
+            dl = _driver_laps(race, num)
+            if not dl: continue
+            entry = {"driver": _code(race, num), "team": _team(race, num)}
+            for col, key in [("duration_sector_1", "best_s1"), ("duration_sector_2", "best_s2"),
+                             ("duration_sector_3", "best_s3"), ("lap_duration", "best_lap")]:
+                vals = [l[col] for l in dl if l.get(col)]
+                entry[key] = round(min(vals), 3) if vals else None
             out.append(entry)
         return {"year": year, "round": round_num, "drivers": out}
     try:    return jsonify(_cached(cache_key, REPLAY_TTL_SEC, compute))
@@ -675,28 +738,24 @@ def replay_sector_times(year, round_num):
 def replay_long_stints(year, round_num):
     cache_key = ("long-stints", year, round_num)
     def compute():
-        sess = _load_race_session(year, round_num, want_laps=True, want_telemetry=False)
-        laps = sess.laps
+        race = _race_data(year, round_num)
         out = {}
-        codes = [c for c in laps["Driver"].dropna().unique().tolist() if c]
-        for code in codes:
-            dl = laps.pick_drivers(code)
+        for num in _race_driver_numbers(race):
+            dl = _driver_laps(race, num)
             stints = []
-            if "Stint" not in dl.columns or dl.empty:
-                out[code] = stints; continue
-            for stint_no, group in dl.groupby("Stint"):
-                lap_nums = group["LapNumber"].dropna().astype(int).tolist()
-                if not lap_nums: continue
-                compound = _to_str(group["Compound"].iloc[0] if "Compound" in group.columns else "")
-                times = group["LapTime"].dropna()
-                avg_sec = round(times.mean().total_seconds(), 3) if not times.empty else None
+            for s in sorted((s for s in race["stints"] if s["driver_number"] == num),
+                            key=lambda s: s["stint_number"]):
+                if s.get("lap_start") is None: continue
+                end = s.get("lap_end") or s["lap_start"]
+                times = [l["lap_duration"] for l in dl if s["lap_start"] <= l["lap_number"] <= end]
                 stints.append({
-                    "stint":    int(stint_no) if not pd.isna(stint_no) else 0,
-                    "compound": compound or "UNKNOWN",
-                    "start_lap": min(lap_nums), "end_lap":   max(lap_nums),
-                    "laps":      len(lap_nums), "avg_lap_time_sec": avg_sec,
+                    "stint":     s["stint_number"],
+                    "compound":  _to_str(s.get("compound")) or "UNKNOWN",
+                    "start_lap": s["lap_start"], "end_lap": end,
+                    "laps":      end - s["lap_start"] + 1,
+                    "avg_lap_time_sec": round(sum(times) / len(times), 3) if times else None,
                 })
-            out[code] = stints
+            out[_code(race, num)] = stints
         return {"year": year, "round": round_num, "stints": out}
     try:    return jsonify(_cached(cache_key, REPLAY_TTL_SEC, compute))
     except Exception as e: return _err(f"Stints {year}/{round_num}: {e}")
@@ -706,29 +765,13 @@ def replay_long_stints(year, round_num):
 def replay_speed_trap(year, round_num):
     cache_key = ("speed-trap", year, round_num)
     def compute():
-        sess = fastf1.get_session(year, round_num, "R")
-        sess.load(laps=True, telemetry=True, weather=False, messages=False)
+        race = _race_data(year, round_num)
         out = []
-        codes = [c for c in sess.laps["Driver"].dropna().unique().tolist() if c]
-        for code in codes:
-            try:
-                dl = sess.laps.pick_drivers(code)
-                if dl.empty: continue
-                top = None
-                if "SpeedST" in dl.columns:
-                    v = dl["SpeedST"].dropna()
-                    if not v.empty: top = float(v.max())
-                if top is None:
-                    fastest = dl.pick_fastest()
-                    if fastest is not None and not (hasattr(fastest,'empty') and fastest.empty):
-                        tel = fastest.get_telemetry()
-                        if tel is not None and not tel.empty:
-                            top = float(tel["Speed"].max())
-                if top is None: continue
-                team = _to_str(dl["Team"].iloc[0]) if "Team" in dl.columns else ""
-                out.append({"driver": code, "team": team, "top_speed_kph": round(top, 1)})
-            except Exception as e:
-                print(f"[speed-trap] {code}: {e}")
+        for num in _race_driver_numbers(race):
+            speeds = [l["st_speed"] for l in _driver_laps(race, num) if l.get("st_speed")]
+            if not speeds: continue
+            out.append({"driver": _code(race, num), "team": _team(race, num),
+                        "top_speed_kph": round(float(max(speeds)), 1)})
         out.sort(key=lambda r: -r["top_speed_kph"])
         return {"year": year, "round": round_num, "drivers": out}
     try:    return jsonify(_cached(cache_key, REPLAY_TTL_SEC, compute))

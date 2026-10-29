@@ -40,6 +40,7 @@ import time
 import datetime
 import threading
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import fastf1
@@ -654,20 +655,24 @@ def replay_mini_sectors(year, round_num):
         N = len(ref_tel); step = max(1, N // 400)
         sub = ref_tel.iloc[::step]
 
-        sector_times_per_driver = {}
-        for num in _race_driver_numbers(race):
+        def driver_sector_times(num):
             code = _code(race, num)
             try:
                 lap = _fastest_lap(_driver_laps(race, num))
-                if lap is None: continue
+                if lap is None: return code, None
                 tel = _lap_telemetry(race, lap, with_position=False)
                 # scale integrated distance onto the reference lap so boundaries line up
                 d = tel["distance"].to_numpy() * track_length / tel["distance"].max()
                 t_at = np.interp(boundaries, d, tel["time"].to_numpy())
-                sector_times_per_driver[code] = [
-                    round(float(dt), 4) if dt > 0 else None for dt in np.diff(t_at)]
+                return code, [round(float(dt), 4) if dt > 0 else None for dt in np.diff(t_at)]
             except Exception as e:
                 print(f"[mini-sectors] skip {code}: {e}")
+                return code, None
+
+        # One car_data request per driver; a few at a time keeps within OpenF1's rate limit
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = pool.map(driver_sector_times, _race_driver_numbers(race))
+        sector_times_per_driver = {code: times for code, times in results if times}
 
         return {
             "year": year, "round": round_num,

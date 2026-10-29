@@ -122,7 +122,9 @@ def _openf1(endpoint, params=None, timeout=8, retries=3):
             r = requests.get(f"{OPENF1}/{endpoint}", params=params or {},
                              headers=HEADERS, timeout=timeout)
             if r.status_code == 429 and attempt < retries:   # rate limited: back off
-                time.sleep(float(r.headers.get("Retry-After") or 2 ** attempt))
+                wait = float(r.headers.get("Retry-After") or 2 ** attempt)
+                print(f"[OpenF1] {endpoint} rate limited, retrying in {wait}s")
+                time.sleep(wait)
                 continue
             r.raise_for_status()
             return r.json()
